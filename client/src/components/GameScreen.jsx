@@ -5,6 +5,7 @@ import PlayerList from './PlayerList';
 import ChatPanel from './ChatPanel';
 import VotingPanel from './VotingPanel';
 import NightPanel from './NightPanel';
+import { getAvatarForRole } from '../utils/avatars';
 
 /**
  * GameScreen – Main game view. Orchestrates all sub-panels based on the
@@ -17,6 +18,7 @@ export default function GameScreen({
   phase,
   phaseMessage,
   phaseDuration,
+  phaseEndTime,
   gameState,
   alivePlayers,
   deadPlayers,
@@ -26,11 +28,13 @@ export default function GameScreen({
   votesCast,
   totalVoters,
   onCastVote,
+  individualVotes,
   // Night
   onNightAction,
   investigationResult,
   nightResult,
   fellowHackers,
+  hackerVoteStatus,
   // Chat
   messages,
   hackerMessages,
@@ -38,6 +42,11 @@ export default function GameScreen({
   onSendHackerChat,
   // Elimination log
   eliminationLog,
+  // Skip
+  skipCount,
+  totalAliveForSkip,
+  hasSkipped,
+  onSkipPhase,
 }) {
   const isNight = phase === PHASES.NIGHT;
   const isVoting = phase === PHASES.DAY_VOTING;
@@ -45,17 +54,23 @@ export default function GameScreen({
   const isDay = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
   const isHacker = myRole === ROLES.HACKER;
 
+  // Theme based on role
+  const themeClass = myRole === ROLES.HACKER ? 'shadow-[inset_0_0_80px_rgba(255,0,0,0.05)]' :
+                     myRole === ROLES.ADMIN ? 'shadow-[inset_0_0_80px_rgba(0,255,100,0.05)]' :
+                     myRole === ROLES.SECURITY_LEAD ? 'shadow-[inset_0_0_80px_rgba(255,200,50,0.05)]' :
+                     'shadow-[inset_0_0_80px_rgba(0,150,255,0.05)]';
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={`min-h-screen flex flex-col ${themeClass}`}>
       {/* Top bar */}
-      <header className="bg-cyber-darker border-b border-cyber-border px-4 py-2 flex items-center justify-between">
+      <header className="bg-cyber-darker/90 backdrop-blur-md border-b border-cyber-border px-4 py-2 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-cyber-green neon-text-green">⚔️ CODE WARS</h1>
-          <span className="text-xs text-gray-500">Room: {gameState?.roomId}</span>
+          <h1 className="text-sm font-bold text-cyber-green neon-text-green tracking-widest drop-shadow-[0_0_5px_rgba(0,255,100,0.5)]">⚔️ CODE WARS</h1>
+          <span className="text-xs text-gray-500 font-mono bg-black/40 px-2 py-0.5 rounded">R:{gameState?.roomId}</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Role badge */}
-          <div className={`text-xs px-2 py-0.5 rounded border ${
+          <div className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-lg ${
             myRole === ROLES.HACKER
               ? 'bg-cyber-red/10 border-cyber-red/30 text-cyber-red'
               : myRole === ROLES.ADMIN
@@ -64,14 +79,11 @@ export default function GameScreen({
               ? 'bg-cyber-yellow/10 border-yellow-500/30 text-cyber-yellow'
               : 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue'
           }`}>
-            {myRole === ROLES.HACKER && '🕷️ '}
-            {myRole === ROLES.ADMIN && '🛠️ '}
-            {myRole === ROLES.SECURITY_LEAD && '🔍 '}
-            {myRole === ROLES.DEVELOPER && '👨‍💻 '}
-            {myRole}
+            <img src={getAvatarForRole(myRole)} alt={myRole} className="w-5 h-5 rounded-full" />
+            <span className="font-bold tracking-wider">{myRole?.replace('_', ' ')}</span>
           </div>
           {!amAlive && (
-            <span className="text-xs text-cyber-red">☠️ ELIMINATED</span>
+            <span className="text-xs bg-red-900/60 text-red-400 font-bold px-2 py-1.5 rounded uppercase tracking-widest border border-red-500/30">TERMINATED</span>
           )}
         </div>
       </header>
@@ -127,7 +139,28 @@ export default function GameScreen({
             systemStability={gameState?.systemStability}
             advancedMode={gameState?.advancedMode}
             message={phaseMessage}
+            phaseEndTime={phaseEndTime}
           />
+
+          {/* Skip Button */}
+          {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT].includes(phase) && (
+            <div className="cyber-card py-2 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                ⏭️ Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
+              </span>
+              <button
+                onClick={onSkipPhase}
+                disabled={hasSkipped}
+                className={`text-xs px-3 py-1 rounded transition-all ${
+                  hasSkipped
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-cyber-blue/20 border border-cyber-blue/40 text-cyber-blue hover:bg-cyber-blue/30'
+                }`}
+              >
+                {hasSkipped ? '✓ Ready to Skip' : '⏭️ Skip Phase'}
+              </button>
+            </div>
+          )}
 
           {/* Phase-specific content */}
           {isVoting && (
@@ -139,6 +172,7 @@ export default function GameScreen({
               totalVoters={totalVoters}
               onCastVote={onCastVote}
               amAlive={amAlive}
+              individualVotes={individualVotes}
             />
           )}
 
@@ -175,6 +209,7 @@ export default function GameScreen({
               investigationResult={investigationResult}
               fellowHackers={fellowHackers}
               amAlive={amAlive}
+              hackerVoteStatus={hackerVoteStatus}
             />
           )}
 

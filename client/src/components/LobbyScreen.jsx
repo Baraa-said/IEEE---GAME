@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getAvatarForPlayer } from '../utils/avatars';
 
 /**
  * LobbyScreen – Handles room creation, joining, and pre-game lobby.
@@ -61,8 +62,9 @@ export default function LobbyScreen({
                   key={p.id}
                   className="flex items-center justify-between bg-cyber-darker rounded px-3 py-2"
                 >
-                  <span className="text-white">
-                    {p.isHost && <span className="text-cyber-yellow mr-2">👑</span>}
+                  <span className="flex items-center text-white gap-2">
+                    <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-8 h-8 rounded-full bg-black/40" />
+                    {p.isHost && <span className="text-cyber-yellow" title="Host">👑</span>}
                     {p.name}
                   </span>
                   {p.disconnected && (

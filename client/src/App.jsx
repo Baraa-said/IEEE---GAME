@@ -5,6 +5,8 @@ import LobbyScreen from './components/LobbyScreen';
 import GameScreen from './components/GameScreen';
 import GameOverScreen from './components/GameOverScreen';
 import RoleRevealModal from './components/RoleRevealModal';
+import ToastContainer from './components/Toast';
+import { playPhaseChange, playChatNotif, playElimination } from './utils/sounds';
 
 /**
  * App – Root component. Manages global game state received from the server
@@ -13,8 +15,9 @@ import RoleRevealModal from './components/RoleRevealModal';
 export default function App() {
   // ── Connection & identity ──
   const [connected, setConnected] = useState(false);
-  const [roomId, setRoomId] = useState(null);
-  const [playerName, setPlayerName] = useState('');
+  const [roomId, setRoomId] = useState(() => sessionStorage.getItem('cw_roomId') || null);
+  const [playerName, setPlayerName] = useState(() => sessionStorage.getItem('cw_playerName') || '');
+  const [reconnecting, setReconnecting] = useState(false);
 
   // ── Game state ──
   const [gameState, setGameState] = useState(null);  // public state from server
@@ -51,16 +54,41 @@ export default function App() {
   // ── Defenders for defense phase ──
   const [defenders, setDefenders] = useState([]);
 
+  // Timer & Toast & Hacker vote & Skip
+  const [phaseEndTime, setPhaseEndTime] = useState(null);
+  const [hackerVoteStatus, setHackerVoteStatus] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [skipCount, setSkipCount] = useState(0);
+  const [totalAliveForSkip, setTotalAliveForSkip] = useState(0);
+  const [hasSkipped, setHasSkipped] = useState(false);
+  const [individualVotes, setIndividualVotes] = useState({});
+
   /* ═══════════════════════════════════════════
    *  SOCKET EVENT LISTENERS
    * ═══════════════════════════════════════════ */
   useEffect(() => {
-    socket.on('connect', () => setConnected(true));
+    socket.on('connect', () => {
+      setConnected(true);
+      // Auto-reconnect: if we had a room + name, try to rejoin
+      const savedRoom = sessionStorage.getItem('cw_roomId');
+      const savedName = sessionStorage.getItem('cw_playerName');
+      const savedInGame = sessionStorage.getItem('cw_inGame');
+      if (savedRoom && savedName && savedInGame === 'true') {
+        setReconnecting(true);
+        socket.emit(EVENTS.RECONNECT_ATTEMPT, { roomId: savedRoom, playerName: savedName });
+      }
+    });
     socket.on('disconnect', () => setConnected(false));
 
     // Room events
-    socket.on(EVENTS.ROOM_CREATED, ({ roomId }) => setRoomId(roomId));
-    socket.on(EVENTS.ROOM_JOINED, ({ roomId }) => setRoomId(roomId));
+    socket.on(EVENTS.ROOM_CREATED, ({ roomId }) => {
+      setRoomId(roomId);
+      sessionStorage.setItem('cw_roomId', roomId);
+    });
+    socket.on(EVENTS.ROOM_JOINED, ({ roomId }) => {
+      setRoomId(roomId);
+      sessionStorage.setItem('cw_roomId', roomId);
+    });
     socket.on(EVENTS.JOIN_ERROR, ({ reason }) => setErrorMsg(reason));
     socket.on(EVENTS.ERROR, ({ message }) => setErrorMsg(message));
 
@@ -84,15 +112,33 @@ export default function App() {
       setPhase(p);
       setPhaseMesage(message || '');
       setPhaseDuration(duration || 0);
+      setPhaseEndTime(duration ? Date.now() + duration : null);
       if (defs) setDefenders(defs);
       // Reset votes on new voting phase
       if (p === PHASES.DAY_VOTING) {
         setVoteTally({});
         setVotesCast(0);
+        setIndividualVotes({});
       }
-      // Clear night result when day starts
-      if (p === PHASES.DAY_DISCUSSION) {
+      // Reset skip votes on every phase change
+      setSkipCount(0);
+      setHasSkipped(false);
+      // Clear night result & hacker votes when night starts (night-first flow)
+      if (p === PHASES.NIGHT) {
         setNightResult(null);
+        setHackerVoteStatus(null);
+      }
+      // Phase change sound & toast
+      try { playPhaseChange(p === PHASES.NIGHT); } catch(e) {}
+      const phaseLabels = {
+        [PHASES.DAY_DISCUSSION]: { title: '\u2600\ufe0f Discussion Phase', type: 'day' },
+        [PHASES.DAY_VOTING]: { title: '\ud83d\uddf3\ufe0f Voting Phase', type: 'voting' },
+        [PHASES.DAY_DEFENSE]: { title: '\ud83d\udee1\ufe0f Defense Phase', type: 'info' },
+        [PHASES.NIGHT]: { title: '\ud83c\udf19 Night Phase', type: 'night' },
+      };
+      const toastInfo = phaseLabels[p];
+      if (toastInfo) {
+        setToasts(prev => [...prev, { ...toastInfo, message: message || '', id: Date.now() + Math.random() }]);
       }
     });
 
@@ -100,13 +146,15 @@ export default function App() {
     socket.on(EVENTS.GAME_STARTED, (state) => {
       setGameState(state);
       setPhase(state.phase);
+      sessionStorage.setItem('cw_inGame', 'true');
     });
 
     // Voting
-    socket.on(EVENTS.VOTE_UPDATE, ({ tally, votesCast: vc, totalVoters: tv }) => {
+    socket.on(EVENTS.VOTE_UPDATE, ({ tally, votesCast: vc, totalVoters: tv, individualVotes: iv }) => {
       setVoteTally(tally);
       setVotesCast(vc);
       setTotalVoters(tv);
+      if (iv) setIndividualVotes(iv);
     });
 
     socket.on(EVENTS.VOTE_RESULT, ({ tally, eliminatedId, defenders: defs }) => {
@@ -117,37 +165,79 @@ export default function App() {
     // Eliminations
     socket.on(EVENTS.PLAYER_ELIMINATED, (data) => {
       setEliminationLog(prev => [...prev, data]);
-      addSystemMessage(`☠️ ${data.name} (${data.role}) was eliminated – ${data.reason}`);
-    });
+      addSystemMessage(`☠️ ${data.name} (${data.role}) was eliminated – ${data.reason}`);      try { playElimination(); } catch(e) {}
+      setToasts(prev => [...prev, { id: Date.now() + Math.random(), title: '\u2620\ufe0f Player Eliminated', message: `${data.name} (${data.role})`, type: 'elimination' }]);    });
 
     // Night
-    socket.on(EVENTS.INVESTIGATION_RESULT, (result) => {
-      setInvestigationResult(result);
+    socket.on(EVENTS.INVESTIGATION_RESULT, (data) => {
+      setInvestigationResult(data.results || [data]);
     });
 
     socket.on(EVENTS.NIGHT_RESULT, (result) => {
       setNightResult(result);
       addSystemMessage(result.message);
+      const tType = result.eliminated ? 'elimination' : result.protectionSaved ? 'protection' : 'info';
+      setToasts(prev => [...prev, { id: Date.now() + Math.random(), title: '\ud83c\udf19 Night Result', message: result.message, type: tType }]);
     });
 
     // Chat
     socket.on(EVENTS.CHAT_MESSAGE, (msg) => {
       setMessages(prev => [...prev, msg]);
+      if (msg.senderId !== socket.id) try { playChatNotif(); } catch(e) {}
     });
 
     socket.on(EVENTS.HACKER_CHAT, (msg) => {
       setHackerMessages(prev => [...prev, msg]);
+      if (msg.senderId !== socket.id) try { playChatNotif(); } catch(e) {}
+    });
+
+    socket.on(EVENTS.HACKER_VOTE_UPDATE, (data) => {
+      setHackerVoteStatus(data);
     });
 
     // Game over
     socket.on(EVENTS.GAME_OVER, (data) => {
       setGameOverData(data);
       setPhase(PHASES.GAME_OVER);
+      sessionStorage.removeItem('cw_inGame');
     });
 
     // Disconnect notices
     socket.on(EVENTS.PLAYER_DISCONNECTED, ({ playerId }) => {
       addSystemMessage(`⚠️ A player disconnected.`);
+    });
+
+    // Reconnect notices
+    socket.on(EVENTS.PLAYER_RECONNECTED, ({ playerName: pName }) => {
+      addSystemMessage(`🔄 ${pName} reconnected!`);
+    });
+
+    // Reconnect success — restore full game state
+    socket.on(EVENTS.RECONNECT_SUCCESS, ({ roomId: rid, role, description, phase: p, gameState: gs }) => {
+      setReconnecting(false);
+      setRoomId(rid);
+      setMyRole(role);
+      setRoleDescription(description);
+      setPhase(p);
+      setGameState(gs);
+      addSystemMessage('🔄 Reconnected successfully!');
+    });
+
+    // Reconnect fail — clear session, go to lobby
+    socket.on(EVENTS.RECONNECT_FAIL, ({ reason }) => {
+      setReconnecting(false);
+      sessionStorage.removeItem('cw_roomId');
+      sessionStorage.removeItem('cw_playerName');
+      sessionStorage.removeItem('cw_inGame');
+      setRoomId(null);
+      setPhase(PHASES.LOBBY);
+      setErrorMsg(`Reconnect failed: ${reason}`);
+    });
+
+    // Skip updates
+    socket.on(EVENTS.SKIP_UPDATE, ({ skipCount: sc, totalAlive: ta }) => {
+      setSkipCount(sc);
+      setTotalAliveForSkip(ta);
     });
 
     return () => {
@@ -166,16 +256,22 @@ export default function App() {
     }]);
   }, []);
 
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   /* ═══════════════════════════════════════════
    *  ACTIONS
    * ═══════════════════════════════════════════ */
   const createRoom = (name) => {
     setPlayerName(name);
+    sessionStorage.setItem('cw_playerName', name);
     socket.emit(EVENTS.CREATE_ROOM, { playerName: name });
   };
 
   const joinRoom = (code, name) => {
     setPlayerName(name);
+    sessionStorage.setItem('cw_playerName', name);
     socket.emit(EVENTS.JOIN_ROOM, { roomId: code, playerName: name });
   };
 
@@ -199,6 +295,13 @@ export default function App() {
     socket.emit(EVENTS.HACKER_CHAT, { message });
   };
 
+  const skipPhase = () => {
+    if (!hasSkipped) {
+      socket.emit(EVENTS.SKIP_PHASE);
+      setHasSkipped(true);
+    }
+  };
+
   /* ═══════════════════════════════════════════
    *  DERIVED STATE
    * ═══════════════════════════════════════════ */
@@ -211,6 +314,20 @@ export default function App() {
   /* ═══════════════════════════════════════════
    *  RENDER
    * ═══════════════════════════════════════════ */
+  // Show reconnecting overlay
+  if (reconnecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cyber-bg">
+        <div className="cyber-card text-center p-8">
+          <div className="text-4xl mb-4 animate-spin">🔄</div>
+          <h2 className="text-cyber-green text-lg font-bold mb-2">Reconnecting...</h2>
+          <p className="text-gray-400 text-sm">Attempting to rejoin your game session.</p>
+          <p className="text-gray-500 text-xs mt-2">Room: {roomId} • Name: {playerName}</p>
+        </div>
+      </div>
+    );
+  }
+
   // Not in a room yet → show lobby
   if (!roomId || phase === PHASES.LOBBY) {
     return (
@@ -251,6 +368,7 @@ export default function App() {
   // In-game
   return (
     <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <GameScreen
         myId={myId}
         myRole={myRole}
@@ -258,6 +376,7 @@ export default function App() {
         phase={phase}
         phaseMessage={phaseMessage}
         phaseDuration={phaseDuration}
+        phaseEndTime={phaseEndTime}
         gameState={gameState}
         alivePlayers={alivePlayers}
         deadPlayers={deadPlayers}
@@ -267,11 +386,13 @@ export default function App() {
         votesCast={votesCast}
         totalVoters={totalVoters}
         onCastVote={castVote}
+        individualVotes={individualVotes}
         // Night
         onNightAction={submitNightAction}
         investigationResult={investigationResult}
         nightResult={nightResult}
         fellowHackers={fellowHackers}
+        hackerVoteStatus={hackerVoteStatus}
         // Chat
         messages={messages}
         hackerMessages={hackerMessages}
@@ -279,6 +400,11 @@ export default function App() {
         onSendHackerChat={sendHackerChat}
         // Elimination log
         eliminationLog={eliminationLog}
+        // Skip
+        skipCount={skipCount}
+        totalAliveForSkip={totalAliveForSkip}
+        hasSkipped={hasSkipped}
+        onSkipPhase={skipPhase}
       />
       {showRoleModal && (
         <RoleRevealModal

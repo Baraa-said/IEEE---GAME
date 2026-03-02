@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { ROLES, PHASES } from '../shared/constants';
+import React, { useState, useEffect } from 'react';
+import { ROLES } from '../shared/constants';
 
 /**
  * NightPanel – Night action UI for Hackers, Security Lead, and Admin.
- * Developers see a "waiting" message.
+ * - Security Lead can investigate 2 players
+ * - Hackers must agree unanimously (shows vote status)
+ * - Developers see a "waiting" message
  */
 export default function NightPanel({
   myRole,
@@ -13,9 +15,18 @@ export default function NightPanel({
   investigationResult,
   fellowHackers,
   amAlive,
+  hackerVoteStatus,
 }) {
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Reset on hacker vote disagreement
+  useEffect(() => {
+    if (hackerVoteStatus?.disagreement) {
+      setSubmitted(false);
+      setSelectedTarget(null);
+    }
+  }, [hackerVoteStatus]);
 
   const handleSubmit = () => {
     if (!selectedTarget) return;
@@ -27,13 +38,11 @@ export default function NightPanel({
   const getTargets = () => {
     switch (myRole) {
       case ROLES.HACKER:
-        // Can target anyone alive who is NOT a hacker
         return alivePlayers.filter(p => !fellowHackers.find(h => h.id === p.id) && p.id !== myId);
       case ROLES.SECURITY_LEAD:
-        // Can investigate anyone alive except self
+        // Exclude self only
         return alivePlayers.filter(p => p.id !== myId);
       case ROLES.ADMIN:
-        // Can protect anyone alive (including self)
         return alivePlayers;
       default:
         return [];
@@ -42,14 +51,23 @@ export default function NightPanel({
 
   const targets = getTargets();
 
-  const roleActionLabel = {
-    [ROLES.HACKER]: { action: 'Inject Critical Bug', icon: '🕷️', color: 'cyber-red' },
-    [ROLES.SECURITY_LEAD]: { action: 'Investigate Player', icon: '🔍', color: 'cyber-yellow' },
-    [ROLES.ADMIN]: { action: 'Debug (Protect) Player', icon: '🛠️', color: 'cyber-green' },
-    [ROLES.DEVELOPER]: { action: 'Sleep', icon: '💤', color: 'gray-400' },
+  const getActionLabel = () => {
+    if (myRole === ROLES.SECURITY_LEAD) {
+      return {
+        action: 'Investigate Player',
+        icon: '🔍',
+        color: 'cyber-yellow',
+      };
+    }
+    const labels = {
+      [ROLES.HACKER]: { action: 'Inject Critical Bug', icon: '🕷️', color: 'cyber-red' },
+      [ROLES.ADMIN]: { action: 'Debug (Protect) Player', icon: '🛠️', color: 'cyber-green' },
+      [ROLES.DEVELOPER]: { action: 'Sleep', icon: '💤', color: 'gray-400' },
+    };
+    return labels[myRole] || labels[ROLES.DEVELOPER];
   };
 
-  const config = roleActionLabel[myRole] || roleActionLabel[ROLES.DEVELOPER];
+  const config = getActionLabel();
 
   if (!amAlive) {
     return (
@@ -82,8 +100,24 @@ export default function NightPanel({
         {config.icon} {config.action}
       </h3>
 
-      {/* Investigation result from previous night */}
-      {myRole === ROLES.SECURITY_LEAD && investigationResult && (
+      {/* Investigation results from previous night (array format) */}
+      {myRole === ROLES.SECURITY_LEAD && investigationResult && Array.isArray(investigationResult) && investigationResult.length > 0 && (
+        <div className="mb-3 space-y-1">
+          {investigationResult.map((res, i) => (
+            <div key={i} className={`p-2 rounded text-xs ${
+              res.isHacker
+                ? 'bg-cyber-red/10 border border-cyber-red/30 text-cyber-red'
+                : 'bg-cyber-green/10 border border-cyber-green/30 text-cyber-green'
+            }`}>
+              Investigation: <strong>{res.targetName}</strong> is{' '}
+              {res.isHacker ? '🕷️ a HACKER!' : '✅ NOT a Hacker.'}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Legacy single investigation result support */}
+      {myRole === ROLES.SECURITY_LEAD && investigationResult && !Array.isArray(investigationResult) && (
         <div className={`mb-3 p-2 rounded text-xs ${
           investigationResult.isHacker
             ? 'bg-cyber-red/10 border border-cyber-red/30 text-cyber-red'
@@ -91,6 +125,29 @@ export default function NightPanel({
         }`}>
           Last investigation: <strong>{investigationResult.targetName}</strong> is{' '}
           {investigationResult.isHacker ? '🕷️ a HACKER!' : '✅ NOT a Hacker.'}
+        </div>
+      )}
+      {myRole === ROLES.HACKER && hackerVoteStatus && (
+        <div className={`mb-3 p-2 rounded text-xs border ${
+          hackerVoteStatus.disagreement
+            ? 'bg-cyber-red/10 border-cyber-red/30'
+            : 'bg-cyber-darker border-cyber-red/20'
+        }`}>
+          {hackerVoteStatus.disagreement && (
+            <p className="text-cyber-red font-bold mb-1">⚠️ You must ALL agree on the same target! Votes reset.</p>
+          )}
+          {Object.values(hackerVoteStatus.votes || {}).map((v, i) => (
+            <p key={i} className="text-gray-400">
+              🕷️ {v.hackerName} → <span className="text-cyber-red">{v.targetName}</span>
+            </p>
+          ))}
+          {!hackerVoteStatus.disagreement && (
+            <p className="text-gray-500 mt-1 text-[10px]">
+              {hackerVoteStatus.allVoted
+                ? '✓ All hackers voted'
+                : `${Object.keys(hackerVoteStatus.votes || {}).length}/${hackerVoteStatus.totalHackers} hackers voted`}
+            </p>
+          )}
         </div>
       )}
 

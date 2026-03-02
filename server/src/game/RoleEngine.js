@@ -67,23 +67,25 @@ class RoleEngine {
    *
    * @returns {{ eliminated: Player|null, investigationResult: {targetId,isHacker}|null, protectionSaved: boolean, newStability: number }}
    */
-  static resolveNight({ alivePlayers, hackerTargetId, adminTargetId, securityTargetId, systemStability, advancedMode }) {
+  static resolveNight({ alivePlayers, hackerTargetId, adminTargetId, securityTargetIds, systemStability, advancedMode }) {
     const result = {
       eliminated: null,
-      investigationResult: null,
+      investigationResults: [],
       protectionSaved: false,
       newStability: systemStability,
     };
 
-    // --- Investigation ---
-    if (securityTargetId) {
-      const target = alivePlayers.find(p => p.id === securityTargetId);
-      if (target) {
-        result.investigationResult = {
-          targetId: target.id,
-          targetName: target.name,
-          isHacker: target.isHacker(),
-        };
+    // --- Investigation (Security Lead investigates up to 2 players) ---
+    if (securityTargetIds && securityTargetIds.length > 0) {
+      for (const targetId of securityTargetIds) {
+        const target = alivePlayers.find(p => p.id === targetId);
+        if (target) {
+          result.investigationResults.push({
+            targetId: target.id,
+            targetName: target.name,
+            isHacker: target.isHacker(),
+          });
+        }
       }
     }
 

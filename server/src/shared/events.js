@@ -41,15 +41,23 @@ const EVENTS = Object.freeze({
   /* ── Chat ── */
   CHAT_MESSAGE: 'chat_message',
   HACKER_CHAT: 'hacker_chat',
+  HACKER_VOTE_UPDATE: 'hacker_vote_update',
   SYSTEM_MESSAGE: 'system_message',
 
   /* ── Game end ── */
   GAME_OVER: 'game_over',
 
+  /* ── Skip ── */
+  SKIP_PHASE: 'skip_phase',
+  SKIP_UPDATE: 'skip_update',
+
   /* ── Misc ── */
   ERROR: 'error_message',
   PLAYER_DISCONNECTED: 'player_disconnected',
   PLAYER_RECONNECTED: 'player_reconnected',
+  RECONNECT_ATTEMPT: 'reconnect_attempt',
+  RECONNECT_SUCCESS: 'reconnect_success',
+  RECONNECT_FAIL: 'reconnect_fail',
   KICK_PLAYER: 'kick_player',
 });
 

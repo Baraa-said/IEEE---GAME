@@ -11,6 +11,7 @@ export default function VotingPanel({
   totalVoters,
   onCastVote,
   amAlive,
+  individualVotes = {},
 }) {
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [hasVoted, setHasVoted] = useState(false);
@@ -75,6 +76,26 @@ export default function VotingPanel({
             {hasVoted ? '✓ Vote Submitted (click to change)' : 'Cast Vote'}
           </button>
         </>
+      )}
+
+      {/* Individual vote mapping */}
+      {Object.keys(individualVotes).length > 0 && (
+        <div className="mt-3 border-t border-cyber-border pt-2">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">
+            Who Voted for Whom
+          </p>
+          <div className="space-y-0.5 max-h-32 overflow-y-auto">
+            {Object.entries(individualVotes).map(([voterId, { voterName, targetName }]) => (
+              <div key={voterId} className="text-xs flex items-center gap-1">
+                <span className={`font-semibold ${voterId === myId ? 'text-cyber-green' : 'text-cyber-blue'}`}>
+                  {voterName}
+                </span>
+                <span className="text-gray-600">→</span>
+                <span className="text-cyber-red font-semibold">{targetName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

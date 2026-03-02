@@ -17,6 +17,12 @@ export default function ChatPanel({
   const [showHackerChat, setShowHackerChat] = useState(false);
   const scrollRef = useRef(null);
 
+  // Auto-switch to hacker channel during night for hackers
+  useEffect(() => {
+    if (isNight && isHacker) setShowHackerChat(true);
+    if (!isNight) setShowHackerChat(false);
+  }, [isNight, isHacker]);
+
   // Auto-scroll on new messages
   const activeMessages = showHackerChat ? hackerMessages : messages;
   useEffect(() => {
@@ -38,7 +44,18 @@ export default function ChatPanel({
   };
 
   // Can this player chat right now?
-  const canChat = amAlive && (!isNight || (isNight && isHacker));
+  const canChat = amAlive && (showHackerChat ? (isHacker && isNight) : !isNight);
+
+  // Determine placeholder text
+  const getPlaceholder = () => {
+    if (canChat) {
+      return showHackerChat ? 'Message fellow hackers…' : 'Type a message…';
+    }
+    if (!amAlive) return 'You are eliminated…';
+    if (showHackerChat && !isNight) return 'Hacker channel active at night only…';
+    if (isNight) return 'Chat disabled during night…';
+    return 'Chat unavailable…';
+  };
 
   return (
     <div className="cyber-card flex flex-col h-full">
@@ -105,13 +122,7 @@ export default function ChatPanel({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            !canChat
-              ? (isNight ? 'Chat disabled during night…' : 'You are eliminated…')
-              : showHackerChat
-              ? 'Message fellow hackers…'
-              : 'Type a message…'
-          }
+          placeholder={getPlaceholder()}
           disabled={!canChat}
           className="cyber-input flex-1 text-xs"
           maxLength={200}

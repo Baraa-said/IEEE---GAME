@@ -1,5 +1,6 @@
 import React from 'react';
 import { ROLES } from '../shared/constants';
+import { getAvatarForPlayer, getAvatarForRole } from '../utils/avatars';
 
 /**
  * PlayerList – Displays alive / dead players with role badges for dead ones.
@@ -36,7 +37,7 @@ export default function PlayerList({ alivePlayers, deadPlayers, myId, defenders,
               `}
             >
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-cyber-green" />
+                <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-6 h-6 rounded-full bg-black/40" />
                 <span className={isMe ? 'text-cyber-green font-semibold' : 'text-gray-300'}>
                   {p.name}
                 </span>
@@ -62,10 +63,16 @@ export default function PlayerList({ alivePlayers, deadPlayers, myId, defenders,
               key={p.id}
               className="flex items-center justify-between rounded px-2 py-1.5 text-sm bg-cyber-darker opacity-50"
             >
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-gray-600" />
+              <div className="flex items-center gap-1.5">
+                <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-5 h-5 rounded-full grayscale opacity-50 bg-black/40" />
                 <span className="text-gray-500 line-through">{p.name}</span>
-              </span>
+              </div>
+              {p.role && (
+                <div className="flex items-center gap-1">
+                  <img src={getAvatarForRole(p.role)} alt={p.role} className="w-4 h-4 rounded-full" />
+                  <span className="text-[10px] text-gray-400 capitalize">{p.role.replace('_', ' ')}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

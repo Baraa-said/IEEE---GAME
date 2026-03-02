@@ -51,7 +51,7 @@ class Room {
     this.voteRoundInSprint = 0; // how many vote rounds within current sprint
 
     // Night action collection
-    this.nightActions = { hackerTarget: null, adminTarget: null, securityTarget: null };
+    this.nightActions = { hackerTarget: null, adminTarget: null, securityTargets: [] };
     this.hackerVotes = new Map(); // hackerId → targetId (hackers vote on target)
 
     // Timers
@@ -62,6 +62,9 @@ class Room {
 
     // Track defenders for defense phase
     this.currentDefenders = [];
+
+    // Skip votes
+    this.skipVotes = new Set();
   }
 
   /* ═══════════════════════════════════════════
@@ -148,7 +151,7 @@ class Room {
     const playerArr = [...this.players.values()];
     RoleEngine.assignRoles(playerArr);
 
-    this.phase = PHASES.DAY_DISCUSSION;
+    this.phase = PHASES.NIGHT;
     this.sprint = 1;
 
     return { ok: true };
@@ -173,6 +176,7 @@ class Room {
    */
   setPhase(newPhase, broadcast, extra = {}) {
     this.clearTimer();
+    this.skipVotes = new Set(); // Reset skip votes on phase change
     this.phase = newPhase;
     broadcast(EVENTS.PHASE_CHANGE, {
       phase: newPhase,
@@ -180,6 +184,31 @@ class Room {
       systemStability: this.systemStability,
       ...extra,
     });
+  }
+
+  /**
+   * Skip the current phase (called when all alive players voted to skip).
+   */
+  skipPhase(broadcast, sendToPlayerFn) {
+    const currentPhase = this.phase;
+    this.clearTimer();
+
+    switch (currentPhase) {
+      case PHASES.DAY_DISCUSSION:
+        this.startVoting(broadcast);
+        break;
+      case PHASES.DAY_VOTING:
+        this.resolveVotes(broadcast);
+        break;
+      case PHASES.DAY_DEFENSE:
+        this.startVoting(broadcast);
+        break;
+      case PHASES.NIGHT:
+        this.resolveNight(broadcast, sendToPlayerFn);
+        break;
+      default:
+        break;
+    }
   }
 
   /**
@@ -242,6 +271,9 @@ class Room {
       });
       this.log.push({ sprint: this.sprint, phase: 'day', eliminated: eliminated.name, role: eliminated.role });
 
+      // Broadcast updated state (dead player fix)
+      broadcast(EVENTS.ROOM_UPDATE, this.getPublicState());
+
       // Check win
       const win = RoleEngine.checkWinCondition([...this.players.values()], this.systemStability, this.advancedMode);
       if (win.gameOver) {
@@ -249,7 +281,8 @@ class Room {
         return;
       }
 
-      // Move to night
+      // Move to next night (new sprint)
+      this.sprint += 1;
       this.startNight(broadcast);
     } else if (defenders.length > 0) {
       // Defense phase
@@ -275,7 +308,7 @@ class Room {
   startNight(broadcast) {
     // Reset night state for all alive players
     this.getAlivePlayers().forEach(p => p.resetNight());
-    this.nightActions = { hackerTarget: null, adminTarget: null, securityTarget: null };
+    this.nightActions = { hackerTarget: null, adminTarget: null, securityTargets: [] };
     this.hackerVotes = new Map();
 
     this.setPhase(PHASES.NIGHT, broadcast, {
@@ -283,9 +316,10 @@ class Room {
       duration: TIMERS.NIGHT,
     });
 
-    // Auto-resolve after timer
+    // Auto-resolve after timer (store sendToPlayer ref for timer callback)
+    this._lastSendToPlayer = this._lastSendToPlayer || null;
     this.phaseTimer = setTimeout(() => {
-      this.resolveNight(broadcast);
+      this.resolveNight(broadcast, this._lastSendToPlayer);
     }, TIMERS.NIGHT);
   }
 
@@ -293,27 +327,79 @@ class Room {
    * Record a night action from a player.
    * @param {string} playerId
    * @param {string} targetId
-   * @param {function} sendToPlayer – fn(event, data) to send private message
+   * @param {function} sendToPlayer – fn(playerId, event, data) to send private message
    * @param {function} broadcast
    */
   submitNightAction(playerId, targetId, sendToPlayer, broadcast) {
     const player = this.getPlayer(playerId);
     if (!player || !player.alive || this.phase !== PHASES.NIGHT) return;
 
+    // Store sendToPlayer for timer-based resolution
+    this._lastSendToPlayer = sendToPlayer;
+
     player.nightTarget = targetId;
 
     if (player.isHacker()) {
       this.hackerVotes.set(playerId, targetId);
-      // Check if all alive hackers have voted
+      // Notify all alive hackers of current vote status
       const aliveHackers = this.getAliveHackers();
+      const voteSummary = {};
+      for (const [hId, tId] of this.hackerVotes.entries()) {
+        const h = this.getPlayer(hId);
+        const t = this.getPlayer(tId);
+        voteSummary[hId] = { hackerName: h?.name, targetId: tId, targetName: t?.name };
+      }
+      for (const h of aliveHackers) {
+        sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
+          votes: voteSummary,
+          totalHackers: aliveHackers.length,
+          allVoted: this.hackerVotes.size >= aliveHackers.length,
+          disagreement: false,
+        });
+      }
+      // If all hackers voted, check unanimity
       if (this.hackerVotes.size >= aliveHackers.length) {
-        // Majority vote among hackers to pick target
-        this.nightActions.hackerTarget = this.majorityVote(this.hackerVotes);
+        const targets = [...this.hackerVotes.values()];
+        const allSame = targets.every(t => t === targets[0]);
+        if (allSame) {
+          this.nightActions.hackerTarget = targets[0];
+        } else {
+          // Not unanimous — reset votes
+          this.hackerVotes.clear();
+          for (const h of aliveHackers) {
+            sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
+              votes: {},
+              totalHackers: aliveHackers.length,
+              allVoted: false,
+              disagreement: true,
+              message: 'You must all agree on the same target! Votes reset.',
+            });
+          }
+          return; // Don't check allNightActionsReady
+        }
       }
     } else if (player.isAdmin()) {
       this.nightActions.adminTarget = targetId;
     } else if (player.isSecurityLead()) {
-      this.nightActions.securityTarget = targetId;
+      // Security Lead can investigate 1 player — send result IMMEDIATELY
+      if (!this.nightActions.securityTargets.includes(targetId) && this.nightActions.securityTargets.length < 1) {
+        this.nightActions.securityTargets.push(targetId);
+        // Instant investigation feedback
+        const target = this.getPlayer(targetId);
+        if (target) {
+          const result = {
+            targetId: target.id,
+            targetName: target.name,
+            isHacker: target.isHacker(),
+          };
+          // Send cumulative results so far
+          const allResults = this.nightActions.securityTargets.map(tid => {
+            const t = this.getPlayer(tid);
+            return t ? { targetId: t.id, targetName: t.name, isHacker: t.isHacker() } : null;
+          }).filter(Boolean);
+          sendToPlayer(player.id, EVENTS.INVESTIGATION_RESULT, { results: allResults });
+        }
+      }
     }
 
     // Check if all night actions are in
@@ -329,9 +415,9 @@ class Room {
     const aliveAdmin = alive.find(p => p.isAdmin());
     const aliveSecurity = alive.find(p => p.isSecurityLead());
 
-    const hackersReady = this.hackerVotes.size >= aliveHackers.length;
+    const hackersReady = this.nightActions.hackerTarget !== null;
     const adminReady = !aliveAdmin || this.nightActions.adminTarget !== null;
-    const securityReady = !aliveSecurity || this.nightActions.securityTarget !== null;
+    const securityReady = !aliveSecurity || this.nightActions.securityTargets.length >= 1;
 
     return hackersReady && adminReady && securityReady;
   }
@@ -350,33 +436,29 @@ class Room {
   }
 
   /**
-   * Resolve all night actions and advance to next day.
+   * Resolve all night actions and advance to day.
    */
   resolveNight(broadcast, sendToPlayerFn) {
     this.clearTimer();
 
-    // If hackers didn't all vote, pick from whatever we have
-    if (!this.nightActions.hackerTarget && this.hackerVotes.size > 0) {
-      this.nightActions.hackerTarget = this.majorityVote(this.hackerVotes);
-    }
-
+    // Hackers must be unanimous — if they didn't agree, attack fails
     const result = RoleEngine.resolveNight({
       alivePlayers: this.getAlivePlayers(),
       hackerTargetId: this.nightActions.hackerTarget,
       adminTargetId: this.nightActions.adminTarget,
-      securityTargetId: this.nightActions.securityTarget,
+      securityTargetIds: this.nightActions.securityTargets,
       systemStability: this.systemStability,
       advancedMode: this.advancedMode,
     });
 
     this.systemStability = result.newStability;
 
-    // Send investigation result privately to Security Lead
-    if (result.investigationResult && sendToPlayerFn) {
+    // Send investigation results privately to Security Lead (up to 2)
+    if (result.investigationResults && result.investigationResults.length > 0 && sendToPlayerFn) {
       const secLead = this.getAlivePlayers().find(p => p.isSecurityLead());
       if (secLead) {
-        secLead.lastInvestigation = result.investigationResult;
-        sendToPlayerFn(secLead.id, EVENTS.INVESTIGATION_RESULT, result.investigationResult);
+        secLead.lastInvestigation = result.investigationResults;
+        sendToPlayerFn(secLead.id, EVENTS.INVESTIGATION_RESULT, { results: result.investigationResults });
       }
     }
 
@@ -402,6 +484,9 @@ class Room {
       });
     }
 
+    // Broadcast updated player state (dead player fix)
+    broadcast(EVENTS.ROOM_UPDATE, this.getPublicState());
+
     // Check win condition
     const win = RoleEngine.checkWinCondition([...this.players.values()], this.systemStability, this.advancedMode);
     if (win.gameOver) {
@@ -409,12 +494,10 @@ class Room {
       return;
     }
 
-    // Next sprint
-    this.sprint += 1;
-    // Reset vote streaks for new sprint
+    // Reset vote streaks for upcoming day
     this.getAlivePlayers().forEach(p => { p.voteStreak = 0; });
 
-    // Small delay then start next day
+    // Small delay then start day
     setTimeout(() => {
       this.startDay(broadcast);
     }, 3000);

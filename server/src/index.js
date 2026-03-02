@@ -11,6 +11,8 @@ const path = require('path');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const registerHandlers = require('./sockets/handlers');
+const roomManager = require('./game/RoomManager');
+const adminDashboard = require('./admin/dashboard');
 
 const PORT = process.env.PORT || 4000;
 
@@ -27,7 +29,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', game: 'Code Wars – Hackers vs Developers' });
 });
 
-// SPA fallback – serve index.html for any non-API route
+// Admin dashboard — JSON API
+app.get('/api/admin/rooms', (_req, res) => {
+  res.json(adminDashboard.getRoomsData(roomManager));
+});
+
+// Admin dashboard — HTML page
+app.get('/admin', (_req, res) => {
+  res.send(adminDashboard.renderPage(roomManager));
+});
+
+// SPA fallback – serve index.html for any non-API, non-admin route
 app.get('*', (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
