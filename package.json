@@ -1,0 +1,13 @@
+{
+  "name": "code-wars-hackers-vs-developers",
+  "version": "1.0.0",
+  "description": "Multiplayer Mafia/Werewolf-style game with a cybersecurity theme",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "start:server": "cd server && npm start",
+    "build:client": "cd client && npm run build"
+  }
+}
