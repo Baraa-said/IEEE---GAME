@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { getAvatarForPlayer } from '../utils/avatars';
+import { playVoteCast, playClick } from '../utils/sounds';
 
 /**
  * VotingPanel – UI for casting votes during the Day voting phase.
@@ -20,13 +22,14 @@ export default function VotingPanel({
     if (!selectedTarget) return;
     onCastVote(selectedTarget);
     setHasVoted(true);
+    try { playVoteCast(); } catch(_) {}
   };
 
   // Players I can vote for (everyone alive except me)
   const targets = alivePlayers.filter(p => p.id !== myId);
 
   return (
-    <div className="cyber-card">
+    <div className="cyber-card animate-slide-up">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs uppercase tracking-wider text-cyber-blue font-bold">
           🗳️ Vote to Suspend Account
@@ -43,21 +46,25 @@ export default function VotingPanel({
       ) : (
         <>
           <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
-            {targets.map(p => {
+            {targets.map((p, i) => {
               const votes = voteTally?.[p.id] || 0;
               const isSelected = selectedTarget === p.id;
               return (
                 <button
                   key={p.id}
-                  onClick={() => { setSelectedTarget(p.id); setHasVoted(false); }}
-                  className={`w-full flex items-center justify-between rounded px-3 py-2 text-sm transition-all
+                  onClick={() => { setSelectedTarget(p.id); setHasVoted(false); try { playClick(); } catch(_) {} }}
+                  className={`w-full flex items-center justify-between rounded px-3 py-2 text-sm transition-all animate-slide-right
                     ${isSelected
                       ? 'bg-cyber-red/20 border border-cyber-red/40 text-cyber-red'
                       : 'bg-cyber-darker border border-transparent hover:border-cyber-border text-gray-300'
                     }
                   `}
+                  style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
                 >
-                  <span>{p.name}</span>
+                  <div className="flex items-center gap-3">
+                    <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-8 h-8 rounded-full bg-black/40" />
+                    <span>{p.name}</span>
+                  </div>
                   {votes > 0 && (
                     <span className="text-xs text-cyber-red font-bold">
                       {votes} vote{votes > 1 ? 's' : ''}

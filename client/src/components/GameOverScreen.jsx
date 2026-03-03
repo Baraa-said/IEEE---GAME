@@ -11,14 +11,17 @@ export default function GameOverScreen({ data, myId }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="cyber-card max-w-lg w-full animate-fade-in text-center">
+        {/* Logo */}
+        <img src="/logo.svg" alt="IEEE Code Wars" className="h-12 mx-auto mb-4 opacity-60" />
+
         {/* Winner banner */}
-        <div className={`mb-6 py-6 rounded-lg ${
+        <div className={`mb-6 py-6 rounded-lg animate-bounce-in ${
           isHackerWin
             ? 'bg-cyber-red/10 border border-cyber-red/30'
             : 'bg-cyber-green/10 border border-cyber-green/30'
         }`}>
-          <p className="text-5xl mb-3">{isHackerWin ? '🕷️' : '🛡️'}</p>
-          <h1 className={`text-2xl font-bold ${
+          <p className="text-5xl mb-3 animate-scale-in animate-float">{isHackerWin ? '🕷️' : '🛡️'}</p>
+          <h1 className={`text-2xl font-bold animate-glow-pulse ${
             isHackerWin ? 'text-cyber-red neon-text-red' : 'text-cyber-green neon-text-green'
           }`}>
             {isHackerWin ? 'HACKERS WIN!' : 'DEVELOPERS WIN!'}
@@ -32,7 +35,7 @@ export default function GameOverScreen({ data, myId }) {
             All Players Revealed
           </h3>
           <div className="space-y-1.5">
-            {players.map(p => {
+            {players.map((p, i) => {
               const roleIcons = {
                 Developer: '👨‍💻',
                 Hacker: '🕷️',
@@ -43,9 +46,10 @@ export default function GameOverScreen({ data, myId }) {
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center justify-between rounded px-3 py-2 text-sm
+                  className={`flex items-center justify-between rounded px-3 py-2 text-sm animate-slide-left
                     ${isMe ? 'bg-cyber-green/10 border border-cyber-green/20' : 'bg-cyber-darker'}
                   `}
+                  style={{ animationDelay: `${i * 90 + 300}ms`, animationFillMode: 'both' }}
                 >
                   <span className="flex items-center gap-2">
                     <span>{roleIcons[p.role] || '❓'}</span>

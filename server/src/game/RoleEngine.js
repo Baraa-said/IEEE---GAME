@@ -9,6 +9,7 @@
  */
 
 const ROLES = require('../shared/roles');
+const CONFIG = require('../shared/gameConfig');
 
 class RoleEngine {
   /**
@@ -26,9 +27,10 @@ class RoleEngine {
    * Determine how many hackers for the given player count.
    */
   static hackerCount(playerCount) {
-    if (playerCount <= 7) return 2;
-    if (playerCount <= 10) return 3;
-    return Math.floor(playerCount / 3);
+    for (const tier of CONFIG.HACKER_TIERS) {
+      if (playerCount <= tier.maxPlayers) return tier.hackers;
+    }
+    return Math.floor(playerCount * CONFIG.DEFAULT_HACKER_RATIO);
   }
 
   /**
@@ -117,7 +119,7 @@ class RoleEngine {
    * @param {boolean} advancedMode
    * @returns {{ gameOver: boolean, winner: 'hackers'|'developers'|null, reason: string }}
    */
-  static checkWinCondition(allPlayers, systemStability = 3, advancedMode = false) {
+  static checkWinCondition(allPlayers, systemStability = CONFIG.INITIAL_STABILITY, advancedMode = false) {
     const alive = allPlayers.filter(p => p.alive);
     const hackers = alive.filter(p => p.isHacker());
     const nonHackers = alive.filter(p => !p.isHacker());

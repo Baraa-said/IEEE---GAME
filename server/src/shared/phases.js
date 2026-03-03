@@ -8,6 +8,7 @@ const PHASES = Object.freeze({
   DAY_VOTING: 'day_voting',
   DAY_DEFENSE: 'day_defense',
   NIGHT: 'night',
+  SUNRISE: 'sunrise',
   GAME_OVER: 'game_over',
 });
 

@@ -6,9 +6,10 @@
  */
 
 const Room = require('./Room');
+const CONFIG = require('../shared/gameConfig');
 
-/** Reconnect window: 15 minutes */
-const RECONNECT_WINDOW_MS = 15 * 60 * 1000;
+/** Reconnect window – sourced from gameConfig */
+const RECONNECT_WINDOW_MS = CONFIG.RECONNECT_WINDOW_MS;
 
 class RoomManager {
   constructor() {
@@ -97,7 +98,7 @@ class RoomManager {
     }
 
     if (!disconnectedPlayer) {
-      return { ok: false, reason: 'No disconnected player with that name found, or reconnect window (15 min) expired.' };
+      return { ok: false, reason: `No disconnected player with that name found, or reconnect window (${Math.round(CONFIG.RECONNECT_WINDOW_MS / 60000)} min) expired.` };
     }
 
     // Swap the player to the new socket ID

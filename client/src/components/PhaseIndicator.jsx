@@ -30,6 +30,7 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
     [PHASES.DAY_VOTING]: { label: '🗳️ VOTING', color: 'text-cyber-blue', bg: 'bg-cyber-blue/10', border: 'border-cyber-blue/30' },
     [PHASES.DAY_DEFENSE]: { label: '🛡️ DEFENSE', color: 'text-cyber-purple', bg: 'bg-cyber-purple/10', border: 'border-cyber-purple/30' },
     [PHASES.NIGHT]: { label: '🌙 NIGHT OPS', color: 'text-cyber-red', bg: 'bg-cyber-red/10', border: 'border-cyber-red/30' },
+    [PHASES.SUNRISE]: { label: '🌅 SUNRISE', color: 'text-orange-400', bg: 'bg-orange-900/10', border: 'border-orange-500/30' },
     [PHASES.GAME_OVER]: { label: '🏁 GAME OVER', color: 'text-white', bg: 'bg-gray-800', border: 'border-gray-600' },
   };
 

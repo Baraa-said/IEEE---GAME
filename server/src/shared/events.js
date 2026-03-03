@@ -17,6 +17,7 @@ const EVENTS = Object.freeze({
   JOIN_ERROR: 'join_error',
   START_GAME: 'start_game',
   GAME_STARTED: 'game_started',
+  FILL_WITH_BOTS: 'fill_with_bots',
 
   /* ── Role ── */
   ROLE_ASSIGNED: 'role_assigned',
@@ -34,6 +35,7 @@ const EVENTS = Object.freeze({
 
   /* ── Night ── */
   NIGHT_ACTION: 'night_action',
+  NIGHT_ACTION_ACK: 'night_action_ack',
   NIGHT_RESULT: 'night_result',
   INVESTIGATION_RESULT: 'investigation_result',
   PROTECTION_RESULT: 'protection_result',
@@ -50,6 +52,24 @@ const EVENTS = Object.freeze({
   /* ── Skip ── */
   SKIP_PHASE: 'skip_phase',
   SKIP_UPDATE: 'skip_update',
+
+  /* ── Code Files ── */
+  CODE_FILES_INIT: 'code_files_init',
+  GET_PLAYER_CODE: 'get_player_code',
+  PLAYER_CODE_DATA: 'player_code_data',
+  HACKER_INJECT: 'hacker_inject',
+  HACKER_INJECT_RESULT: 'hacker_inject_result',
+  HACKER_INJECT_VOTE: 'hacker_inject_vote',
+  HACKER_INJECT_VOTE_UPDATE: 'hacker_inject_vote_update',
+  ADMIN_CHECK: 'admin_check',
+  ADMIN_CHECK_RESULT: 'admin_check_result',
+  ADMIN_SCAN_CORRUPTION: 'admin_scan_corruption',
+  ADMIN_SCAN_RESULT: 'admin_scan_result',
+  ADMIN_REPAIR: 'admin_repair',
+  ADMIN_REPAIR_RESULT: 'admin_repair_result',
+  SECURITY_SCAN: 'security_scan',
+  SECURITY_SCAN_RESULT: 'security_scan_result',
+  CODE_UPDATE: 'code_update',
 
   /* ── Misc ── */
   ERROR: 'error_message',

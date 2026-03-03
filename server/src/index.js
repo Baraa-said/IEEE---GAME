@@ -26,7 +26,7 @@ app.use(express.static(clientDist));
 
 // Health-check endpoint
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', game: 'Code Wars – Hackers vs Developers' });
+  res.json({ status: 'ok', game: 'IEEE Code Wars' });
 });
 
 // Admin dashboard — JSON API
@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', async () => {
-  console.log(`\n⚔️  Code Wars server running on http://localhost:${PORT}`);
+  console.log(`\n⚔️  IEEE Code Wars server running on http://localhost:${PORT}`);
   console.log(`   Local network: http://${getLocalIP()}:${PORT}\n`);
 
   // ── Auto-start Cloudflare Tunnel (free, no password gate) ──

@@ -46,6 +46,9 @@ class Player {
     /** Track disconnection — allow short reconnect window */
     this.disconnected = false;
     this.disconnectedAt = null;
+
+    /** Is this an AI bot player (no real socket)? */
+    this.isBot = false;
   }
 
   /* ---- helpers ---- */
@@ -74,6 +77,7 @@ class Player {
       alive: this.alive,
       isHost: this.isHost,
       disconnected: this.disconnected,
+      isBot: this.isBot,
     };
   }
 

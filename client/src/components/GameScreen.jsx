@@ -5,7 +5,9 @@ import PlayerList from './PlayerList';
 import ChatPanel from './ChatPanel';
 import VotingPanel from './VotingPanel';
 import NightPanel from './NightPanel';
+import CodeBrowser from './CodeBrowser';
 import { getAvatarForRole } from '../utils/avatars';
+import { getTheme } from '../utils/themes';
 
 /**
  * GameScreen – Main game view. Orchestrates all sub-panels based on the
@@ -47,38 +49,43 @@ export default function GameScreen({
   totalAliveForSkip,
   hasSkipped,
   onSkipPhase,
+  // Code
+  codeFiles,
+  onSecurityScan,
+  securityScanResult,
+  onHackerInject,
+  hackerInjectResult,
+  onHackerInjectVote,
+  hackerInjectVoteStatus,
+  onAdminRepair,
+  adminRepairResult,
+  onAdminScanCorruption,
+  adminScanResult,
+  onGetPlayerCode,
+  playerCodeData,
 }) {
   const isNight = phase === PHASES.NIGHT;
+  const isSunrise = phase === PHASES.SUNRISE;
   const isVoting = phase === PHASES.DAY_VOTING;
   const isDefense = phase === PHASES.DAY_DEFENSE;
   const isDay = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
   const isHacker = myRole === ROLES.HACKER;
 
-  // Theme based on role
-  const themeClass = myRole === ROLES.HACKER ? 'shadow-[inset_0_0_80px_rgba(255,0,0,0.05)]' :
-                     myRole === ROLES.ADMIN ? 'shadow-[inset_0_0_80px_rgba(0,255,100,0.05)]' :
-                     myRole === ROLES.SECURITY_LEAD ? 'shadow-[inset_0_0_80px_rgba(255,200,50,0.05)]' :
-                     'shadow-[inset_0_0_80px_rgba(0,150,255,0.05)]';
+  // Get role-specific theme
+  const theme = getTheme(myRole);
 
   return (
-    <div className={`min-h-screen flex flex-col ${themeClass}`}>
+    <div className={`min-h-screen flex flex-col ${theme.insetShadow} relative z-10`}>
       {/* Top bar */}
-      <header className="bg-cyber-darker/90 backdrop-blur-md border-b border-cyber-border px-4 py-2 flex items-center justify-between z-10">
+      <header className={`${theme.headerBg} backdrop-blur-md border-b ${theme.headerBorder} px-4 py-2 flex items-center justify-between z-10`}>
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-cyber-green neon-text-green tracking-widest drop-shadow-[0_0_5px_rgba(0,255,100,0.5)]">⚔️ CODE WARS</h1>
+          <img src="/logo.svg" alt="IEEE Code Wars" className="h-8 hidden sm:block" />
+          <h1 className={`text-sm font-bold ${theme.titleColor} ${theme.titleGlow} tracking-widest`}>IEEE CODE WARS</h1>
           <span className="text-xs text-gray-500 font-mono bg-black/40 px-2 py-0.5 rounded">R:{gameState?.roomId}</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Role badge */}
-          <div className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-lg ${
-            myRole === ROLES.HACKER
-              ? 'bg-cyber-red/10 border-cyber-red/30 text-cyber-red'
-              : myRole === ROLES.ADMIN
-              ? 'bg-cyber-green/10 border-cyber-green/30 text-cyber-green'
-              : myRole === ROLES.SECURITY_LEAD
-              ? 'bg-cyber-yellow/10 border-yellow-500/30 text-cyber-yellow'
-              : 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue'
-          }`}>
+          <div className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-lg ${theme.badgeBg} ${theme.badgeBorder} ${theme.badgeText}`}>
             <img src={getAvatarForRole(myRole)} alt={myRole} className="w-5 h-5 rounded-full" />
             <span className="font-bold tracking-wider">{myRole?.replace('_', ' ')}</span>
           </div>
@@ -102,7 +109,7 @@ export default function GameScreen({
 
           {/* Night result notification */}
           {nightResult && (
-            <div className={`cyber-card mt-3 text-xs ${
+            <div className={`cyber-card mt-3 text-xs animate-slide-right ${
               nightResult.eliminated
                 ? 'border-cyber-red/30 bg-cyber-red/5'
                 : nightResult.protectionSaved
@@ -122,7 +129,7 @@ export default function GameScreen({
               </p>
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {eliminationLog.map((e, i) => (
-                  <p key={i} className="text-xs text-gray-400">
+                  <p key={i} className="text-xs text-gray-400 animate-slide-left" style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}>
                     {e.role === 'Hacker' ? '🕷️' : '👨‍💻'} {e.name} ({e.role}) – {e.reason}
                   </p>
                 ))}
@@ -143,7 +150,7 @@ export default function GameScreen({
           />
 
           {/* Skip Button */}
-          {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT].includes(phase) && (
+          {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT, PHASES.SUNRISE].includes(phase) && (
             <div className="cyber-card py-2 flex items-center justify-between">
               <span className="text-xs text-gray-400">
                 ⏭️ Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
@@ -177,7 +184,7 @@ export default function GameScreen({
           )}
 
           {isDefense && defenders.length > 0 && (
-            <div className="cyber-card border-cyber-purple/30">
+            <div className="cyber-card border-cyber-purple/30 animate-slide-up">
               <h3 className="text-xs uppercase tracking-wider text-cyber-purple font-bold mb-2">
                 🛡️ Defense Phase
               </h3>
@@ -213,16 +220,157 @@ export default function GameScreen({
             />
           )}
 
+          {isSunrise && (
+            <div className="space-y-3 animate-slide-up">
+              {/* Admin sunrise panel */}
+              {myRole === ROLES.ADMIN && amAlive && (
+                <div className="space-y-3">
+                  {/* Section 1: Protect a player */}
+                  <div className="cyber-card border-green-500/30 bg-green-900/10">
+                    <h3 className="text-xs uppercase tracking-wider text-green-400 font-bold mb-2">
+                      🌅 Admin — Choose Who to Protect
+                    </h3>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Select one player to shield from the hacker's nightly attack:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {alivePlayers.filter(p => p.id !== myId).map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => onNightAction(p.id)}
+                          className="text-xs px-3 py-2 rounded border border-green-500/30 bg-green-900/20 text-green-300 hover:bg-green-700/30 hover:border-green-400/50 transition-all"
+                        >
+                          🛡️ Protect {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Scan player code for corruption */}
+                  <div className="cyber-card border-blue-500/30 bg-blue-900/10">
+                    <h3 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2">
+                      🔍 Admin — Scan Code for Corruption
+                    </h3>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Scan up to 2 players. If corrupted, you'll see the infected code and can repair it.
+                      If clean, the code stays hidden.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {alivePlayers.filter(p => p.id !== myId).map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => onAdminScanCorruption(p.id)}
+                          className="text-xs px-3 py-2 rounded border border-blue-500/30 bg-blue-900/20 text-blue-300 hover:bg-blue-700/30 hover:border-blue-400/50 transition-all"
+                        >
+                          🔍 Scan {p.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Scan result */}
+                    {adminScanResult && (
+                      <div className={`mt-3 p-3 rounded border text-xs ${
+                        adminScanResult.corrupted
+                          ? 'bg-red-900/20 border-red-500/40'
+                          : 'bg-green-900/20 border-green-500/30'
+                      }`}>
+                        {adminScanResult.corrupted ? (
+                          <>
+                            <p className="text-red-400 font-bold mb-1">
+                              ⚠️ CORRUPTION DETECTED in {adminScanResult.targetName}'s code!
+                            </p>
+                            <p className="text-gray-400">
+                              Infected file: <span className="font-mono text-red-300">{adminScanResult.fileName}</span>
+                            </p>
+                            <p className="text-gray-400">
+                              Bug: <span className="text-red-300">{adminScanResult.corruptionDesc}</span>
+                            </p>
+                            <p className="text-gray-500 mt-1">↓ See Code Browser below to inspect and repair.</p>
+                          </>
+                        ) : (
+                          <p className="text-green-400 font-semibold">
+                            ✅ {adminScanResult.targetName}'s code is clean — no corruption found.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Security Lead sunrise panel */}
+              {myRole === ROLES.SECURITY_LEAD && amAlive && (
+                <div className="cyber-card border-yellow-500/30 bg-yellow-900/10">
+                  <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2">
+                    \ud83c\udf05 Security Lead Sunrise Actions
+                  </h3>
+                  <p className="text-sm text-gray-400">
+                    Browse up to 2 players' code in the Code Browser below. <br/>
+                    Look for <span className="text-yellow-300 font-semibold">suspicious function names</span> that indicate hacker code.
+                    Use the Scan button to investigate suspects!
+                  </p>
+                </div>
+              )}
+
+              {/* Developer / Hacker sunrise panel */}
+              {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
+                <div className="cyber-card border-gray-600/30">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                    \ud83c\udf05 Sunrise
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    The Admin and Security Lead are reviewing code... Wait for the day phase.
+                  </p>
+                </div>
+              )}
+
+              {!amAlive && (
+                <div className="cyber-card border-gray-600/30">
+                  <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold mb-2">
+                    \u2620\ufe0f Eliminated
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    You have been terminated. Observe the sunrise in silence.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {phase === PHASES.DAY_DISCUSSION && (
             <div className="cyber-card flex-1">
               <h3 className="text-xs uppercase tracking-wider text-cyber-yellow font-bold mb-2">
                 ☀️ Discussion Phase
               </h3>
               <p className="text-sm text-gray-400">
-                Discuss with your team who might be a Hacker. Use the chat to share suspicions.
-                Voting will begin shortly.
+                Discuss with your team who might be a Hacker. Browse player code folders below to look for clues!
               </p>
             </div>
+          )}
+
+          {/* Code Browser – always visible during game */}
+          {codeFiles && Object.keys(codeFiles).length > 0 && (
+            <CodeBrowser
+              codeFiles={codeFiles}
+              myId={myId}
+              myRole={myRole}
+              alivePlayers={alivePlayers}
+              phase={phase}
+              isNight={isNight}
+              isSunrise={isSunrise}
+              onHackerInjectVote={onHackerInjectVote}
+              hackerInjectResult={hackerInjectResult}
+              hackerVoteStatus={hackerVoteStatus}
+              hackerInjectVoteStatus={hackerInjectVoteStatus}
+              onAdminRepair={onAdminRepair}
+              adminRepairResult={adminRepairResult}
+              onAdminScanCorruption={onAdminScanCorruption}
+              adminScanResult={adminScanResult}
+              securityScanResult={securityScanResult}
+              onGetPlayerCode={onGetPlayerCode}
+              playerCodeData={playerCodeData}
+              fellowHackers={fellowHackers}
+            />
           )}
         </div>
 
@@ -234,6 +382,7 @@ export default function GameScreen({
             onSendChat={onSendChat}
             onSendHackerChat={onSendHackerChat}
             isNight={isNight}
+            isSunrise={isSunrise}
             isHacker={isHacker}
             amAlive={amAlive}
             myId={myId}

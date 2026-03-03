@@ -8,6 +8,9 @@
 const EVENTS = require('../shared/events');
 const PHASES = require('../shared/phases');
 const ROLES = require('../shared/roles');
+const CONFIG = require('../shared/gameConfig');
+const CodeEngine = require('../game/CodeEngine');
+const BotManager = require('../game/BotManager');
 const roomManager = require('../game/RoomManager');
 
 /**
@@ -61,6 +64,38 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
+   *  FILL WITH BOTS (host fills lobby with AI bots for testing)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.FILL_WITH_BOTS, ({ count } = {}) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || room.phase !== PHASES.LOBBY) return;
+
+    const player = room.getPlayer(socket.id);
+    if (!player || !player.isHost) {
+      socket.emit(EVENTS.ERROR, { message: 'Only the host can add bots.' });
+      return;
+    }
+
+    // Determine how many bots to add
+    const current = room.players.size;
+    const target  = Math.max(current, CONFIG.MIN_PLAYERS);
+    const need    = Math.max(0, target - current);
+    const toAdd   = Math.min(typeof count === 'number' ? count : need, 12 - current);
+    if (toAdd <= 0) return;
+
+    // Bot name pool: avoid duplicates with existing player names
+    const usedNames = [...room.players.values()].map(p => p.name.replace('🤖 ', ''));
+    const pool      = BotManager.getAvailableNames(usedNames);
+
+    for (let i = 0; i < toAdd && pool.length > 0; i++) {
+      const name = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      room.addBot(name);
+    }
+
+    io.to(room.id).emit(EVENTS.ROOM_UPDATE, room.getPublicState());
+  });
+
+  /* ──────────────────────────────────────────
    *  START GAME
    * ────────────────────────────────────────── */
   socket.on(EVENTS.START_GAME, ({ advancedMode }) => {
@@ -81,7 +116,7 @@ function registerHandlers(io, socket) {
 
     if (advancedMode) {
       room.advancedMode = true;
-      room.systemStability = 3;
+      room.systemStability = CONFIG.INITIAL_STABILITY;
     }
 
     // Send role assignments privately
@@ -103,10 +138,20 @@ function registerHandlers(io, socket) {
     // Broadcast game started
     broadcastToRoom(room.id, EVENTS.GAME_STARTED, room.getPublicState());
 
+    // Send initial code files — each player sees ONLY their own code
+    if (room.codeStore) {
+      for (const p of room.players.values()) {
+        const ownCode = CodeEngine.getOwnCode(room.codeStore, p.id);
+        if (ownCode) {
+          sendTo(p.id, EVENTS.CODE_FILES_INIT, { [p.id]: ownCode });
+        }
+      }
+    }
+
     // Begin Night 1 after a short delay for role reveal
     setTimeout(() => {
       room.startNight((event, data) => broadcastToRoom(room.id, event, data));
-    }, 5000);
+    }, CONFIG.DELAYS.ROLE_REVEAL);
   });
 
   /* ──────────────────────────────────────────
@@ -155,7 +200,9 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.NIGHT_ACTION, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || room.phase !== PHASES.NIGHT) return;
+    if (!room) return;
+    // Hackers act during NIGHT, Admin protects during SUNRISE
+    if (room.phase !== PHASES.NIGHT && room.phase !== PHASES.SUNRISE) return;
 
     room.submitNightAction(
       socket.id,
@@ -176,18 +223,24 @@ function registerHandlers(io, socket) {
     if (!player || !player.alive) return;
 
     // Only allow skipping during timed phases
-    if (![PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT].includes(room.phase)) return;
+    if (![PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT, PHASES.SUNRISE].includes(room.phase)) return;
 
     room.skipVotes.add(socket.id);
 
-    const aliveCount = room.getAlivePlayers().length;
+    const alivePlayers = room.getAlivePlayers();
+    // Bots always agree to skip — only real players need to vote
+    const realAlive = alivePlayers.filter(p => !p.isBot).length;
     broadcastToRoom(room.id, EVENTS.SKIP_UPDATE, {
       skipCount: room.skipVotes.size,
-      totalAlive: aliveCount,
+      totalAlive: realAlive,
     });
 
-    // If all alive players voted to skip, advance phase
-    if (room.skipVotes.size >= aliveCount) {
+    // If all real (non-bot) alive players voted to skip, advance phase
+    const realSkips = [...room.skipVotes].filter(id => {
+      const p = room.getPlayer(id);
+      return p && !p.isBot;
+    }).length;
+    if (realSkips >= realAlive) {
       room.skipPhase((event, data) => broadcastToRoom(room.id, event, data),
         (playerId, event, data) => io.to(playerId).emit(event, data));
     }
@@ -240,6 +293,178 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
+   *  GET PLAYER CODE (browse a player's code files)
+   *  - Day: players can only see their OWN code
+   *  - Night: hackers, admin, and security lead can see others' code
+   *    - Admin: limited to ADMIN_CHECKS_PER_NIGHT different players
+   *    - Security Lead: limited to SECURITY_VIEWS_PER_NIGHT different players
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.GET_PLAYER_CODE, ({ targetId }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore) return;
+
+    const player = room.getPlayer(socket.id);
+    if (!player) return;
+
+    const isNight = room.phase === PHASES.NIGHT;
+    const isSunrise = room.phase === PHASES.SUNRISE;
+    const isNightOrSunrise = isNight || isSunrise;
+    const isHacker = player.isHacker();
+    const isAdmin = player.isAdmin();
+    const isSecurityLead = player.isSecurityLead();
+
+    // During day, you can ONLY see your own code
+    if (!isNightOrSunrise && targetId !== socket.id) {
+      socket.emit(EVENTS.ERROR, { message: 'You can only view your own code during the day.' });
+      return;
+    }
+    // During NIGHT: only hackers can view other players' code
+    if (isNight && targetId !== socket.id && !isHacker) {
+      socket.emit(EVENTS.ERROR, { message: 'Only hackers can browse code during the night.' });
+      return;
+    }
+    // During SUNRISE: only admin and security lead can view other players' code
+    if (isSunrise && targetId !== socket.id && !isAdmin && !isSecurityLead) {
+      socket.emit(EVENTS.ERROR, { message: 'Only Admin and Security Lead can browse code at sunrise.' });
+      return;
+    }
+
+    // Check view limits for admin and security lead (during sunrise)
+    if (isSunrise && targetId !== socket.id && (isAdmin || isSecurityLead)) {
+      const allowed = room.trackCodeView(socket.id, targetId);
+      if (!allowed) {
+        const limit = isAdmin ? CONFIG.ADMIN_CHECKS_PER_NIGHT : CONFIG.SECURITY_VIEWS_PER_NIGHT;
+        socket.emit(EVENTS.ERROR, { message: `You can only view ${limit} players' code per round.` });
+        return;
+      }
+    }
+
+    const codeData = CodeEngine.getPlayerCode(room.codeStore, targetId);
+    if (codeData) {
+      const response = { targetId, ...codeData };
+      // Include injection options for hackers viewing the agreed target
+      if (isHacker && targetId !== socket.id) {
+        response.injectionOptions = CodeEngine.getInjectionOptions(room.codeStore, targetId);
+        response.alreadyInjected = room.nightActions.hackerInjected || false;
+      }
+      // Include view counts so clients know remaining views
+      if (isAdmin) {
+        response.viewsUsed = room.nightActions.adminViews.size;
+        response.viewsMax = CONFIG.ADMIN_CHECKS_PER_NIGHT;
+      }
+      if (isSecurityLead) {
+        response.viewsUsed = room.nightActions.securityViews.size;
+        response.viewsMax = CONFIG.SECURITY_VIEWS_PER_NIGHT;
+      }
+      socket.emit(EVENTS.PLAYER_CODE_DATA, response);
+    }
+  });
+
+  /* ──────────────────────────────────────────
+   *  HACKER INJECT (Hacker manually injects a corruption into a target's file)
+   *  Kept for backwards compatibility but individual inject is now replaced by team vote.
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.HACKER_INJECT, ({ targetId, fileIdx, patchIdx }) => {
+    // Redirect to inject vote system
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== 'night') return;
+
+    room.submitHackerInjectVote(
+      socket.id,
+      fileIdx,
+      patchIdx,
+      sendToPlayerFn,
+      (event, data) => broadcastToRoom(room.id, event, data)
+    );
+  });
+
+  /* ──────────────────────────────────────────
+   *  HACKER INJECT VOTE (Hackers vote on which corruption to apply)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.HACKER_INJECT_VOTE, ({ fileIdx, patchIdx }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== 'night') return;
+
+    room.submitHackerInjectVote(
+      socket.id,
+      fileIdx,
+      patchIdx,
+      sendToPlayerFn,
+      (event, data) => broadcastToRoom(room.id, event, data)
+    );
+  });
+
+  /* ──────────────────────────────────────────
+   *  ADMIN CHECK (legacy — admin now browses code manually)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.ADMIN_CHECK, ({ targetId }) => {
+    // Admin checking is now manual — they browse the code and decide.
+    // This event is kept for backwards compatibility but does nothing.
+  });
+
+  /* ──────────────────────────────────────────
+   *  ADMIN SCAN CORRUPTION (Admin checks if a player has corrupted code)
+   *  Only during SUNRISE. Returns corruption details—or a "clean" response.
+   *  If corrupted, sends the player's full code so admin can inspect it.
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.ADMIN_SCAN_CORRUPTION, ({ targetId }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+
+    const player = room.getPlayer(socket.id);
+    if (!player || !player.alive || !player.isAdmin()) return;
+
+    // Track view limit — admin can only scan ADMIN_CHECKS_PER_NIGHT different players
+    const canView = room.trackCodeView(socket.id, targetId);
+    if (!canView) {
+      const limit = CONFIG.ADMIN_CHECKS_PER_NIGHT;
+      socket.emit(EVENTS.ERROR, { message: `You can only scan ${limit} players' code per round.` });
+      return;
+    }
+
+    const details = CodeEngine.getCorruptionDetails(room.codeStore, targetId);
+    const target = room.getPlayer(targetId);
+    socket.emit(EVENTS.ADMIN_SCAN_RESULT, {
+      targetId,
+      targetName: target?.name || details.playerName || 'Unknown',
+      ...details,
+    });
+  });
+
+  /* ──────────────────────────────────────────
+   *  ADMIN REPAIR (Admin fixes a corrupted player's code)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.ADMIN_REPAIR, ({ targetId }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+
+    const result = room.submitAdminRepair(socket.id, targetId, sendToPlayerFn);
+    if (result) {
+      socket.emit(EVENTS.ADMIN_REPAIR_RESULT, result);
+      // Send the target their updated (repaired) code
+      if (result.repaired) {
+        const ownCode = CodeEngine.getOwnCode(room.codeStore, targetId);
+        if (ownCode) {
+          sendTo(targetId, EVENTS.CODE_FILES_INIT, { [targetId]: ownCode });
+        }
+      }
+    }
+  });
+
+  /* ──────────────────────────────────────────
+   *  SECURITY SCAN (Security Lead scans a player's code for sus function names)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.SECURITY_SCAN, ({ targetId }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+
+    const result = room.submitSecurityScan(socket.id, targetId, sendToPlayerFn);
+    if (result) {
+      socket.emit(EVENTS.SECURITY_SCAN_RESULT, result);
+    }
+  });
+
+  /* ──────────────────────────────────────────
    *  RECONNECT ATTEMPT
    * ────────────────────────────────────────── */
   socket.on(EVENTS.RECONNECT_ATTEMPT, ({ roomId, playerName }) => {
@@ -278,6 +503,14 @@ function registerHandlers(io, socket) {
       socket.emit(EVENTS.INVESTIGATION_RESULT, { results: player.lastInvestigation });
     }
 
+    // Send code files on reconnect (own code only)
+    if (room.codeStore) {
+      const ownCode = CodeEngine.getOwnCode(room.codeStore, player.id);
+      if (ownCode) {
+        socket.emit(EVENTS.CODE_FILES_INIT, { [player.id]: ownCode });
+      }
+    }
+
     // Notify room that player reconnected
     broadcastToRoom(room.id, EVENTS.PLAYER_RECONNECTED, {
       playerId: player.id,
@@ -304,13 +537,13 @@ function registerHandlers(io, socket) {
 function getRoleDescription(role) {
   switch (role) {
     case ROLES.DEVELOPER:
-      return 'You are a Developer. You have no special night ability. Vote wisely during the day to eliminate the Hackers!';
+      return 'You are a Developer. Review your code during the day for any bugs. Vote wisely during the day to eliminate the Hackers!';
     case ROLES.HACKER:
-      return 'You are a Hacker. Each night, ALL Hackers must agree on the same target to inject a critical bug. Coordinate in the Hacker Channel!';
+      return 'You are a Hacker. Each night, ALL Hackers vote on a target, then vote together on which corruption to inject. Your own code contains suspicious function names — watch out for the Security Lead!';
     case ROLES.SECURITY_LEAD:
-      return 'You are the Security Lead. Each night, investigate ONE player to learn if they are a Hacker or not.';
+      return 'You are the Security Lead. Each night, browse up to 2 players\' code looking for suspicious function names. If you find functions like exploit_buffer or rootkit_load — that player is a Hacker!';
     case ROLES.ADMIN:
-      return 'You are the Admin. Each night, choose one player to debug (protect). If Hackers target them, the attack fails.';
+      return 'You are the Admin. Each night, browse up to 2 players\' code looking for obvious bugs (runtime errors). If you find corruption, click Repair to fix it!';
     default:
       return '';
   }

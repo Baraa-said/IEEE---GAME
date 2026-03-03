@@ -10,20 +10,19 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const Player = require('./Player');
 const RoleEngine = require('./RoleEngine');
+const CodeEngine = require('./CodeEngine');
 const VoteTracker = require('./VoteTracker');
+const BotManager = require('./BotManager');
 const ROLES = require('../shared/roles');
 const PHASES = require('../shared/phases');
 const EVENTS = require('../shared/events');
+const CONFIG = require('../shared/gameConfig');
 
-/** Duration constants (ms) */
-const TIMERS = {
-  DISCUSSION: 60000,   // 60 s day discussion
-  VOTING: 45000,       // 45 s to vote
-  DEFENSE: 20000,      // 20 s to defend
-  NIGHT: 30000,        // 30 s for night actions
-};
+/** Duration constants (ms) – sourced from gameConfig */
+const TIMERS = CONFIG.TIMERS;
 
 class Room {
   /**
@@ -44,7 +43,7 @@ class Room {
     this.phase = PHASES.LOBBY;
     this.sprint = 0;            // current sprint (round) number
     this.advancedMode = false;
-    this.systemStability = 3;
+    this.systemStability = CONFIG.INITIAL_STABILITY;
 
     // Voting
     this.voteTracker = new VoteTracker();
@@ -65,6 +64,10 @@ class Room {
 
     // Skip votes
     this.skipVotes = new Set();
+
+    // Code files per player (populated at game start)
+    /** @type {Map<string, object>|null} */
+    this.codeStore = null;
   }
 
   /* ═══════════════════════════════════════════
@@ -92,6 +95,19 @@ class Room {
     }
     this.players.set(id, new Player(id, name));
     return { ok: true };
+  }
+
+  /**
+   * Add a bot player to the lobby.
+   * @param {string} name – display name (without emoji prefix)
+   * @returns {Player}
+   */
+  addBot(name) {
+    const botId = `bot_${crypto.randomBytes(4).toString('hex')}`;
+    const bot = new Player(botId, `🤖 ${name}`, false);
+    bot.isBot = true;
+    this.players.set(botId, bot);
+    return bot;
   }
 
   removePlayer(id) {
@@ -127,6 +143,7 @@ class Room {
       sprint: this.sprint,
       systemStability: this.systemStability,
       advancedMode: this.advancedMode,
+      minPlayers: CONFIG.MIN_PLAYERS,
       players: [...this.players.values()].map(p => p.toPublic()),
       defenders: this.currentDefenders.map(p => p.id),
       voteRoundInSprint: this.voteRoundInSprint,
@@ -143,13 +160,16 @@ class Room {
    * @returns {{ ok: boolean, reason?: string }}
    */
   startGame(io) {
-    if (this.players.size < 6) {
-      return { ok: false, reason: 'Need at least 6 players to start.' };
+    if (this.players.size < CONFIG.MIN_PLAYERS) {
+      return { ok: false, reason: `Need at least ${CONFIG.MIN_PLAYERS} players to start.` };
     }
 
     // Assign roles
     const playerArr = [...this.players.values()];
     RoleEngine.assignRoles(playerArr);
+
+    // Generate code files per player
+    this.codeStore = CodeEngine.generateCodeFiles(playerArr);
 
     this.phase = PHASES.NIGHT;
     this.sprint = 1;
@@ -204,7 +224,10 @@ class Room {
         this.startVoting(broadcast);
         break;
       case PHASES.NIGHT:
-        this.resolveNight(broadcast, sendToPlayerFn);
+        this.endNightToSunrise(broadcast, sendToPlayerFn);
+        break;
+      case PHASES.SUNRISE:
+        this.resolveSunrise(broadcast, sendToPlayerFn);
         break;
       default:
         break;
@@ -233,6 +256,7 @@ class Room {
    * Begin a voting round.
    */
   startVoting(broadcast) {
+    this._lastBroadcast = broadcast;
     this.voteRoundInSprint += 1;
     const alive = this.getAlivePlayers();
     this.voteTracker.reset(alive.length);
@@ -247,6 +271,9 @@ class Room {
     this.phaseTimer = setTimeout(() => {
       this.resolveVotes(broadcast);
     }, TIMERS.VOTING);
+
+    // Trigger bot vote actions
+    BotManager.onPhaseStart(this, PHASES.DAY_VOTING);
   }
 
   /**
@@ -303,149 +330,79 @@ class Room {
   }
 
   /**
-   * Begin the Night phase.
+   * Begin the Night phase — HACKERS ONLY act here.
    */
   startNight(broadcast) {
+    this._lastBroadcast = broadcast;
     // Reset night state for all alive players
     this.getAlivePlayers().forEach(p => p.resetNight());
-    this.nightActions = { hackerTarget: null, adminTarget: null, securityTargets: [] };
+    this.nightActions = {
+      hackerTarget: null,
+      hackerInjected: false,
+      adminProtectTarget: null,  // set during sunrise
+      adminRepairs: [],
+      securityTargets: [],
+      adminViews: new Set(),
+      securityViews: new Set(),
+    };
     this.hackerVotes = new Map();
+    this.hackerInjectVotes = new Map();
 
     this.setPhase(PHASES.NIGHT, broadcast, {
-      message: 'Night falls… Hackers, Security Lead, and Admin perform their actions.',
+      message: 'Night falls… Hackers choose their target and inject malicious code.',
       duration: TIMERS.NIGHT,
     });
 
-    // Auto-resolve after timer (store sendToPlayer ref for timer callback)
     this._lastSendToPlayer = this._lastSendToPlayer || null;
     this.phaseTimer = setTimeout(() => {
-      this.resolveNight(broadcast, this._lastSendToPlayer);
+      this.endNightToSunrise(broadcast, this._lastSendToPlayer);
     }, TIMERS.NIGHT);
+
+    // Trigger bot night actions
+    BotManager.onPhaseStart(this, PHASES.NIGHT);
   }
 
   /**
-   * Record a night action from a player.
-   * @param {string} playerId
-   * @param {string} targetId
-   * @param {function} sendToPlayer – fn(playerId, event, data) to send private message
-   * @param {function} broadcast
+   * Transition from Night to Sunrise — don't resolve yet.
    */
-  submitNightAction(playerId, targetId, sendToPlayer, broadcast) {
-    const player = this.getPlayer(playerId);
-    if (!player || !player.alive || this.phase !== PHASES.NIGHT) return;
-
-    // Store sendToPlayer for timer-based resolution
-    this._lastSendToPlayer = sendToPlayer;
-
-    player.nightTarget = targetId;
-
-    if (player.isHacker()) {
-      this.hackerVotes.set(playerId, targetId);
-      // Notify all alive hackers of current vote status
-      const aliveHackers = this.getAliveHackers();
-      const voteSummary = {};
-      for (const [hId, tId] of this.hackerVotes.entries()) {
-        const h = this.getPlayer(hId);
-        const t = this.getPlayer(tId);
-        voteSummary[hId] = { hackerName: h?.name, targetId: tId, targetName: t?.name };
-      }
-      for (const h of aliveHackers) {
-        sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
-          votes: voteSummary,
-          totalHackers: aliveHackers.length,
-          allVoted: this.hackerVotes.size >= aliveHackers.length,
-          disagreement: false,
-        });
-      }
-      // If all hackers voted, check unanimity
-      if (this.hackerVotes.size >= aliveHackers.length) {
-        const targets = [...this.hackerVotes.values()];
-        const allSame = targets.every(t => t === targets[0]);
-        if (allSame) {
-          this.nightActions.hackerTarget = targets[0];
-        } else {
-          // Not unanimous — reset votes
-          this.hackerVotes.clear();
-          for (const h of aliveHackers) {
-            sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
-              votes: {},
-              totalHackers: aliveHackers.length,
-              allVoted: false,
-              disagreement: true,
-              message: 'You must all agree on the same target! Votes reset.',
-            });
-          }
-          return; // Don't check allNightActionsReady
-        }
-      }
-    } else if (player.isAdmin()) {
-      this.nightActions.adminTarget = targetId;
-    } else if (player.isSecurityLead()) {
-      // Security Lead can investigate 1 player — send result IMMEDIATELY
-      if (!this.nightActions.securityTargets.includes(targetId) && this.nightActions.securityTargets.length < 1) {
-        this.nightActions.securityTargets.push(targetId);
-        // Instant investigation feedback
-        const target = this.getPlayer(targetId);
-        if (target) {
-          const result = {
-            targetId: target.id,
-            targetName: target.name,
-            isHacker: target.isHacker(),
-          };
-          // Send cumulative results so far
-          const allResults = this.nightActions.securityTargets.map(tid => {
-            const t = this.getPlayer(tid);
-            return t ? { targetId: t.id, targetName: t.name, isHacker: t.isHacker() } : null;
-          }).filter(Boolean);
-          sendToPlayer(player.id, EVENTS.INVESTIGATION_RESULT, { results: allResults });
-        }
-      }
-    }
-
-    // Check if all night actions are in
-    if (this.allNightActionsReady()) {
-      this.resolveNight(broadcast, sendToPlayer);
-    }
-  }
-
-  /** Check if all expected night actors have submitted */
-  allNightActionsReady() {
-    const alive = this.getAlivePlayers();
-    const aliveHackers = alive.filter(p => p.isHacker());
-    const aliveAdmin = alive.find(p => p.isAdmin());
-    const aliveSecurity = alive.find(p => p.isSecurityLead());
-
-    const hackersReady = this.nightActions.hackerTarget !== null;
-    const adminReady = !aliveAdmin || this.nightActions.adminTarget !== null;
-    const securityReady = !aliveSecurity || this.nightActions.securityTargets.length >= 1;
-
-    return hackersReady && adminReady && securityReady;
-  }
-
-  /** Simple majority vote from a Map<voterId, targetId> */
-  majorityVote(votesMap) {
-    const tally = new Map();
-    for (const target of votesMap.values()) {
-      tally.set(target, (tally.get(target) || 0) + 1);
-    }
-    let best = null, bestCount = 0;
-    for (const [target, count] of tally.entries()) {
-      if (count > bestCount) { best = target; bestCount = count; }
-    }
-    return best;
+  endNightToSunrise(broadcast, sendToPlayerFn) {
+    this.clearTimer();
+    this._lastSendToPlayer = sendToPlayerFn;
+    this.startSunrise(broadcast);
   }
 
   /**
-   * Resolve all night actions and advance to day.
+   * Begin the Sunrise phase — ADMIN and SECURITY LEAD act here.
+   * Admin browses code, repairs, and selects a player to protect.
+   * Security Lead browses code and investigates.
    */
-  resolveNight(broadcast, sendToPlayerFn) {
+  startSunrise(broadcast) {
+    this._lastBroadcast = broadcast;
+    this.setPhase(PHASES.SUNRISE, broadcast, {
+      message: 'Sunrise… Admin and Security Lead review the code and take action.',
+      duration: TIMERS.SUNRISE,
+    });
+
+    this.phaseTimer = setTimeout(() => {
+      this.resolveSunrise(broadcast, this._lastSendToPlayer);
+    }, TIMERS.SUNRISE);
+
+    // Trigger bot sunrise actions
+    BotManager.onPhaseStart(this, PHASES.SUNRISE);
+  }
+
+  /**
+   * Resolve all night + sunrise actions and advance to day.
+   * Hacker attack vs Admin protection is resolved here.
+   */
+  resolveSunrise(broadcast, sendToPlayerFn) {
     this.clearTimer();
 
-    // Hackers must be unanimous — if they didn't agree, attack fails
+    // Resolve standard night actions (elimination, protection, stability)
     const result = RoleEngine.resolveNight({
       alivePlayers: this.getAlivePlayers(),
       hackerTargetId: this.nightActions.hackerTarget,
-      adminTargetId: this.nightActions.adminTarget,
+      adminTargetId: this.nightActions.adminProtectTarget,
       securityTargetIds: this.nightActions.securityTargets,
       systemStability: this.systemStability,
       advancedMode: this.advancedMode,
@@ -453,38 +410,45 @@ class Room {
 
     this.systemStability = result.newStability;
 
-    // Send investigation results privately to Security Lead (up to 2)
-    if (result.investigationResults && result.investigationResults.length > 0 && sendToPlayerFn) {
-      const secLead = this.getAlivePlayers().find(p => p.isSecurityLead());
-      if (secLead) {
-        secLead.lastInvestigation = result.investigationResults;
-        sendToPlayerFn(secLead.id, EVENTS.INVESTIGATION_RESULT, { results: result.investigationResults });
-      }
-    }
-
     // Broadcast night outcome
     if (result.eliminated) {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: { id: result.eliminated.id, name: result.eliminated.name, role: result.eliminated.role },
         protectionSaved: false,
-        message: `${result.eliminated.name} was found with a critical bug injected. They are out!`,
+        message: `${result.eliminated.name} was eliminated during the night!`,
       });
       this.log.push({ sprint: this.sprint, phase: 'night', eliminated: result.eliminated.name, role: result.eliminated.role });
     } else if (result.protectionSaved) {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: null,
         protectionSaved: true,
-        message: 'The Admin successfully debugged the targeted player. No one was eliminated!',
+        message: 'The Admin\'s protection saved someone from elimination! The hacker attack was blocked.',
+      });
+    } else if (this.nightActions.hackerInjected) {
+      broadcast(EVENTS.NIGHT_RESULT, {
+        eliminated: null,
+        protectionSaved: false,
+        message: 'A file was injected during the night! Someone\u2019s code has a hidden bug\u2026',
       });
     } else {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: null,
         protectionSaved: false,
-        message: 'The night passes quietly… no one was attacked.',
+        message: 'The night passes quietly\u2026 no code was compromised.',
       });
     }
 
-    // Broadcast updated player state (dead player fix)
+    // Send each player ONLY their own updated code
+    if (this.codeStore && sendToPlayerFn) {
+      for (const [pid] of this.codeStore.entries()) {
+        const ownCode = CodeEngine.getOwnCode(this.codeStore, pid);
+        if (ownCode) {
+          sendToPlayerFn(pid, EVENTS.CODE_FILES_INIT, { [pid]: ownCode });
+        }
+      }
+    }
+
+    // Broadcast updated player state
     broadcast(EVENTS.ROOM_UPDATE, this.getPublicState());
 
     // Check win condition
@@ -500,8 +464,314 @@ class Room {
     // Small delay then start day
     setTimeout(() => {
       this.startDay(broadcast);
-    }, 3000);
+    }, CONFIG.DELAYS.NIGHT_TO_DAY);
   }
+
+  /**
+   * Record a night action from a player.
+   * @param {string} playerId
+   * @param {string} targetId
+   * @param {function} sendToPlayer – fn(playerId, event, data) to send private message
+   * @param {function} broadcast
+   */
+  /**
+   * Hacker night action — pick a target to corrupt.
+   * All hackers must agree on the same target (unanimous vote).
+   */
+  submitNightAction(playerId, targetId, sendToPlayer, broadcast) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive) return;
+
+    this._lastSendToPlayer = sendToPlayer;
+    player.nightTarget = targetId;
+
+    // Admin protection — only during SUNRISE
+    if (player.isAdmin()) {
+      if (this.phase !== PHASES.SUNRISE) return;
+      this.nightActions.adminProtectTarget = targetId;
+      sendToPlayer(playerId, EVENTS.NIGHT_ACTION_ACK, {
+        action: 'protect',
+        targetId,
+        targetName: this.getPlayer(targetId)?.name || 'Unknown',
+        message: `You chose to protect ${this.getPlayer(targetId)?.name || 'Unknown'} from hacker attacks.`,
+      });
+      return;
+    }
+
+    if (!player.isHacker()) return; // non-hackers use separate events
+    if (this.phase !== PHASES.NIGHT) return; // hackers only act during night
+
+    this.hackerVotes.set(playerId, targetId);
+    const aliveHackers = this.getAliveHackers();
+    const voteSummary = {};
+    for (const [hId, tId] of this.hackerVotes.entries()) {
+      const h = this.getPlayer(hId);
+      const t = this.getPlayer(tId);
+      voteSummary[hId] = { hackerName: h?.name, targetId: tId, targetName: t?.name };
+    }
+    for (const h of aliveHackers) {
+      sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
+        votes: voteSummary,
+        totalHackers: aliveHackers.length,
+        allVoted: this.hackerVotes.size >= aliveHackers.length,
+        disagreement: false,
+      });
+    }
+    if (this.hackerVotes.size >= aliveHackers.length) {
+      const targets = [...this.hackerVotes.values()];
+      const allSame = targets.every(t => t === targets[0]);
+      if (allSame) {
+        this.nightActions.hackerTarget = targets[0];
+        // Send agreed-upon target with injection options to all hackers
+        const injectionOptions = CodeEngine.getInjectionOptions(this.codeStore, targets[0]);
+        const targetPlayer = this.getPlayer(targets[0]);
+        const targetCode = CodeEngine.getPlayerCode(this.codeStore, targets[0]);
+        for (const h of aliveHackers) {
+          sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
+            votes: voteSummary,
+            totalHackers: aliveHackers.length,
+            allVoted: true,
+            disagreement: false,
+            agreed: true,
+            agreedTarget: targets[0],
+            agreedTargetName: targetPlayer?.name || 'Unknown',
+            injectionOptions,
+            targetCode,
+          });
+        }
+      } else {
+        this.hackerVotes.clear();
+        for (const h of aliveHackers) {
+          sendToPlayer(h.id, EVENTS.HACKER_VOTE_UPDATE, {
+            votes: {},
+            totalHackers: aliveHackers.length,
+            allVoted: false,
+            disagreement: true,
+            message: 'You must all agree on the same target! Votes reset.',
+          });
+        }
+        return;
+      }
+    }
+
+    // Don't auto-resolve — hackers still need to vote on injection
+  }
+
+  /**
+   * Hacker injection vote — after target is agreed, hackers vote on which corruption to apply.
+   * All hackers must agree on the same injection (unanimous vote).
+   */
+  submitHackerInjectVote(playerId, fileIdx, patchIdx, sendToPlayer, broadcast) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive || !player.isHacker() || this.phase !== PHASES.NIGHT) return null;
+    if (!this.nightActions.hackerTarget) return null; // no target agreed yet
+    if (this.nightActions.hackerInjected) return null; // already injected
+
+    this._lastSendToPlayer = sendToPlayer;
+    const aliveHackers = this.getAliveHackers();
+    this.hackerInjectVotes.set(playerId, { fileIdx, patchIdx });
+
+    // Build vote summary
+    const voteSummary = {};
+    const injectionOptions = CodeEngine.getInjectionOptions(this.codeStore, this.nightActions.hackerTarget);
+    for (const [hId, vote] of this.hackerInjectVotes.entries()) {
+      const h = this.getPlayer(hId);
+      // Find the patch description
+      let desc = '?';
+      for (const opt of injectionOptions) {
+        if (opt.fileIdx === vote.fileIdx) {
+          const p = opt.patches.find(p => p.patchIdx === vote.patchIdx);
+          if (p) { desc = p.desc; break; }
+        }
+      }
+      const file = injectionOptions.find(o => o.fileIdx === vote.fileIdx);
+      voteSummary[hId] = {
+        hackerName: h?.name,
+        fileIdx: vote.fileIdx,
+        fileName: file?.fileName || '?',
+        patchIdx: vote.patchIdx,
+        desc,
+      };
+    }
+
+    // Notify all hackers of vote status
+    for (const h of aliveHackers) {
+      sendToPlayer(h.id, EVENTS.HACKER_INJECT_VOTE_UPDATE, {
+        votes: voteSummary,
+        totalHackers: aliveHackers.length,
+        allVoted: this.hackerInjectVotes.size >= aliveHackers.length,
+        disagreement: false,
+      });
+    }
+
+    if (this.hackerInjectVotes.size >= aliveHackers.length) {
+      const votes = [...this.hackerInjectVotes.values()];
+      const allSame = votes.every(v => v.fileIdx === votes[0].fileIdx && v.patchIdx === votes[0].patchIdx);
+      if (allSame) {
+        // Apply the agreed injection
+        const result = CodeEngine.injectCorruption(
+          this.codeStore,
+          this.nightActions.hackerTarget,
+          votes[0].fileIdx,
+          votes[0].patchIdx
+        );
+        if (result.success) {
+          this.nightActions.hackerInjected = true;
+        }
+        const target = this.getPlayer(this.nightActions.hackerTarget);
+        const injectResult = {
+          ...result,
+          targetId: this.nightActions.hackerTarget,
+          targetName: target?.name || 'Unknown',
+        };
+        // Notify all hackers
+        for (const h of aliveHackers) {
+          sendToPlayer(h.id, EVENTS.HACKER_INJECT_RESULT, injectResult);
+        }
+        return injectResult;
+      } else {
+        // Disagreement — reset inject votes
+        this.hackerInjectVotes.clear();
+        for (const h of aliveHackers) {
+          sendToPlayer(h.id, EVENTS.HACKER_INJECT_VOTE_UPDATE, {
+            votes: {},
+            totalHackers: aliveHackers.length,
+            allVoted: false,
+            disagreement: true,
+            message: 'All hackers must agree on the same injection! Votes reset.',
+          });
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Track a player's code view (admin or security lead).
+   * Returns true if allowed, false if view limit exceeded.
+   */
+  trackCodeView(playerId, targetId) {
+    const player = this.getPlayer(playerId);
+    if (!player) return false;
+
+    if (player.isAdmin()) {
+      if (!this.nightActions.adminViews.has(targetId) &&
+          this.nightActions.adminViews.size >= CONFIG.ADMIN_CHECKS_PER_NIGHT) {
+        return false;
+      }
+      this.nightActions.adminViews.add(targetId);
+      return true;
+    }
+
+    if (player.isSecurityLead()) {
+      if (!this.nightActions.securityViews.has(targetId) &&
+          this.nightActions.securityViews.size >= CONFIG.SECURITY_VIEWS_PER_NIGHT) {
+        return false;
+      }
+      this.nightActions.securityViews.add(targetId);
+      return true;
+    }
+
+    return true; // hackers have no view limit
+  }
+
+  /**
+   * Admin checks a player's code for corruption (up to ADMIN_CHECKS_PER_NIGHT).
+   * Returns the check result immediately to the admin.
+   */
+  submitAdminCheck(playerId, targetId, sendToPlayer) {
+    // Keep for backwards compat — admin now browses code manually
+    return null;
+  }
+
+  /**
+   * Hacker injects a specific corruption into a target's file.
+   * Only 1 injection per hacker team per night.
+   */
+  submitHackerInject(playerId, targetId, fileIdx, patchIdx, sendToPlayer) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive || !player.isHacker() || this.phase !== PHASES.NIGHT) return null;
+    if (this.nightActions.hackerInjected) return { success: false, reason: 'already_injected' };
+    if (targetId === playerId) return { success: false, reason: 'cannot_self_inject' };
+
+    this._lastSendToPlayer = sendToPlayer;
+    const result = CodeEngine.injectCorruption(this.codeStore, targetId, fileIdx, patchIdx);
+    if (result.success) {
+      this.nightActions.hackerInjected = true;
+    }
+    const target = this.getPlayer(targetId);
+    return {
+      ...result,
+      targetId,
+      targetName: target?.name || 'Unknown',
+    };
+  }
+
+  /**
+   * Admin repairs a player's corrupted code.
+   */
+  submitAdminRepair(playerId, targetId, sendToPlayer) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive || !player.isAdmin() || this.phase !== PHASES.SUNRISE) return null;
+
+    this._lastSendToPlayer = sendToPlayer;
+    const repairResult = CodeEngine.repairCorruption(this.codeStore, targetId);
+    const target = this.getPlayer(targetId);
+    if (repairResult.wasCorrupted) {
+      this.nightActions.adminRepairs.push(targetId);
+    }
+    return {
+      targetId,
+      targetName: target?.name || 'Unknown',
+      repaired: repairResult.wasCorrupted,
+      fileName: repairResult.fileName || null,
+    };
+  }
+
+  /**
+   * Security Lead scans a player for hacker function signatures.
+   */
+  submitSecurityScan(playerId, targetId, sendToPlayer) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive || !player.isSecurityLead() || this.phase !== PHASES.SUNRISE) return null;
+    if (this.nightActions.securityTargets.length >= CONFIG.MAX_INVESTIGATIONS_PER_NIGHT) return null;
+    if (this.nightActions.securityTargets.includes(targetId)) return null;
+
+    this._lastSendToPlayer = sendToPlayer;
+    this.nightActions.securityTargets.push(targetId);
+
+    const scanResult = CodeEngine.scanForHackerSignatures(this.codeStore, targetId);
+    const target = this.getPlayer(targetId);
+    return {
+      targetId,
+      targetName: target?.name || 'Unknown',
+      suspicious: scanResult.suspicious,
+      suspiciousFunctions: scanResult.suspiciousFunctions,
+      suspiciousFile: scanResult.suspiciousFile || null,
+    };
+  }
+
+  /** Check if all expected night actors have submitted */
+  allNightActionsReady() {
+    // Night resolves via timer — all actions are manually triggered
+    return false;
+  }
+
+  /** Simple majority vote from a Map<voterId, targetId> */
+  majorityVote(votesMap) {
+    const tally = new Map();
+    for (const target of votesMap.values()) {
+      tally.set(target, (tally.get(target) || 0) + 1);
+    }
+    let best = null, bestCount = 0;
+    for (const [target, count] of tally.entries()) {
+      if (count > bestCount) { best = target; bestCount = count; }
+    }
+    return best;
+  }
+
+  /* Old resolveNight removed — resolution now happens in resolveSunrise() */
 
   /**
    * End the game.

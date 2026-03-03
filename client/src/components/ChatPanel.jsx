@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getAvatarForPlayer } from '../utils/avatars';
 
 /**
  * ChatPanel – Public day chat + private hacker night chat.
@@ -9,6 +10,7 @@ export default function ChatPanel({
   onSendChat,
   onSendHackerChat,
   isNight,
+  isSunrise,
   isHacker,
   amAlive,
   myId,
@@ -44,16 +46,17 @@ export default function ChatPanel({
   };
 
   // Can this player chat right now?
-  const canChat = amAlive && (showHackerChat ? (isHacker && isNight) : !isNight);
+  const canChat = amAlive && (showHackerChat ? (isHacker && isNight) : (!isNight && !isSunrise));
 
   // Determine placeholder text
   const getPlaceholder = () => {
     if (canChat) {
-      return showHackerChat ? 'Message fellow hackers…' : 'Type a message…';
+      return showHackerChat ? 'Message fellow hackers\u2026' : 'Type a message\u2026';
     }
-    if (!amAlive) return 'You are eliminated…';
-    if (showHackerChat && !isNight) return 'Hacker channel active at night only…';
-    if (isNight) return 'Chat disabled during night…';
+    if (!amAlive) return 'You are eliminated\u2026';
+    if (showHackerChat && !isNight) return 'Hacker channel active at night only\u2026';
+    if (isNight) return 'Chat disabled during night\u2026';
+    if (isSunrise) return 'Chat disabled during sunrise\u2026';
     return 'Chat unavailable…';
   };
 
@@ -96,22 +99,27 @@ export default function ChatPanel({
         {activeMessages.map((msg, i) => (
           <div
             key={i}
-            className={`text-xs px-2 py-1 rounded ${
+            className={`text-xs px-2 py-1 rounded flex gap-2 ${
               msg.isSystem
-                ? 'bg-cyber-darker text-gray-400 italic'
+                ? 'bg-cyber-darker text-gray-400 italic items-center'
                 : msg.senderId === myId
-                ? 'bg-cyber-green/10 text-gray-300'
-                : 'text-gray-300'
+                ? 'bg-cyber-green/10 text-gray-300 items-start'
+                : 'text-gray-300 items-start'
             }`}
           >
             {!msg.isSystem && (
-              <span className={`font-semibold mr-1 ${
-                msg.senderId === myId ? 'text-cyber-green' : 'text-cyber-blue'
-              }`}>
-                {msg.senderName}:
-              </span>
+              <img src={getAvatarForPlayer(msg.senderName)} alt={msg.senderName} className="w-5 h-5 rounded-full mt-0.5 bg-black/40 flex-shrink-0" />
             )}
-            {msg.message}
+            <div className="flex-1">
+              {!msg.isSystem && (
+                <span className={`font-semibold mr-1 ${
+                  msg.senderId === myId ? 'text-cyber-green' : 'text-cyber-blue'
+                }`}>
+                  {msg.senderName}:
+                </span>
+              )}
+              <span className="break-words align-middle">{msg.message}</span>
+            </div>
           </div>
         ))}
       </div>

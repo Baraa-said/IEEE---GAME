@@ -6,7 +6,9 @@ import GameScreen from './components/GameScreen';
 import GameOverScreen from './components/GameOverScreen';
 import RoleRevealModal from './components/RoleRevealModal';
 import ToastContainer from './components/Toast';
-import { playPhaseChange, playChatNotif, playElimination } from './utils/sounds';
+import { playPhaseChange, playChatNotif, playElimination, playJoinRoom, playPlayerJoined, playGameStart, playRoleReveal, playVoteResult, playDefenseStart, playProtectionSaved, playHackerInject, playScanClean, playScanCorrupted, playRepair, playWin, playLose, playSunrise, playHackerChat, playSendMessage, playSkip } from './utils/sounds';
+import { applyThemeToDocument } from './utils/themes';
+import SkyBackground from './components/SkyBackground';
 
 /**
  * App – Root component. Manages global game state received from the server
@@ -63,6 +65,20 @@ export default function App() {
   const [hasSkipped, setHasSkipped] = useState(false);
   const [individualVotes, setIndividualVotes] = useState({});
 
+  // ── Code Files ──
+  const [codeFiles, setCodeFiles] = useState(null);
+  const [securityScanResult, setSecurityScanResult] = useState(null);
+  const [hackerInjectResult, setHackerInjectResult] = useState(null);
+  const [adminRepairResult, setAdminRepairResult] = useState(null);
+  const [playerCodeData, setPlayerCodeData] = useState(null);
+  const [hackerInjectVoteStatus, setHackerInjectVoteStatus] = useState(null);
+  const [adminScanResult, setAdminScanResult] = useState(null);
+
+  // Apply role-based theme to document when role changes
+  useEffect(() => {
+    applyThemeToDocument(myRole);
+  }, [myRole]);
+
   /* ═══════════════════════════════════════════
    *  SOCKET EVENT LISTENERS
    * ═══════════════════════════════════════════ */
@@ -84,16 +100,23 @@ export default function App() {
     socket.on(EVENTS.ROOM_CREATED, ({ roomId }) => {
       setRoomId(roomId);
       sessionStorage.setItem('cw_roomId', roomId);
+      try { playJoinRoom(); } catch(_) {}
     });
     socket.on(EVENTS.ROOM_JOINED, ({ roomId }) => {
       setRoomId(roomId);
       sessionStorage.setItem('cw_roomId', roomId);
+      try { playJoinRoom(); } catch(_) {}
     });
     socket.on(EVENTS.JOIN_ERROR, ({ reason }) => setErrorMsg(reason));
     socket.on(EVENTS.ERROR, ({ message }) => setErrorMsg(message));
 
     socket.on(EVENTS.ROOM_UPDATE, (state) => {
-      setGameState(state);
+      setGameState(prev => {
+        if (prev && state.players.length > prev.players.length) {
+          try { playPlayerJoined(); } catch(_) {}
+        }
+        return state;
+      });
     });
 
     // Role
@@ -101,6 +124,7 @@ export default function App() {
       setMyRole(role);
       setRoleDescription(description);
       setShowRoleModal(true);
+      try { playRoleReveal(); } catch(_) {}
     });
 
     socket.on(EVENTS.HACKER_REVEAL, ({ hackers }) => {
@@ -120,6 +144,8 @@ export default function App() {
         setVotesCast(0);
         setIndividualVotes({});
       }
+      if (p === PHASES.DAY_DEFENSE) { try { playDefenseStart(); } catch(_) {} }
+      if (p === PHASES.SUNRISE)      { try { playSunrise(); } catch(_) {} }
       // Reset skip votes on every phase change
       setSkipCount(0);
       setHasSkipped(false);
@@ -127,6 +153,18 @@ export default function App() {
       if (p === PHASES.NIGHT) {
         setNightResult(null);
         setHackerVoteStatus(null);
+        setHackerInjectResult(null);
+        setHackerInjectVoteStatus(null);
+        setAdminRepairResult(null);
+        setSecurityScanResult(null);
+        setPlayerCodeData(null);
+      }
+      // Reset admin/security state when sunrise starts
+      if (p === PHASES.SUNRISE) {
+        setAdminRepairResult(null);
+        setSecurityScanResult(null);
+        setPlayerCodeData(null);
+        setAdminScanResult(null);
       }
       // Phase change sound & toast
       try { playPhaseChange(p === PHASES.NIGHT); } catch(e) {}
@@ -135,6 +173,7 @@ export default function App() {
         [PHASES.DAY_VOTING]: { title: '\ud83d\uddf3\ufe0f Voting Phase', type: 'voting' },
         [PHASES.DAY_DEFENSE]: { title: '\ud83d\udee1\ufe0f Defense Phase', type: 'info' },
         [PHASES.NIGHT]: { title: '\ud83c\udf19 Night Phase', type: 'night' },
+        [PHASES.SUNRISE]: { title: '\ud83c\udf05 Sunrise Phase', type: 'info' },
       };
       const toastInfo = phaseLabels[p];
       if (toastInfo) {
@@ -147,6 +186,7 @@ export default function App() {
       setGameState(state);
       setPhase(state.phase);
       sessionStorage.setItem('cw_inGame', 'true');
+      try { playGameStart(); } catch(_) {}
     });
 
     // Voting
@@ -160,6 +200,7 @@ export default function App() {
     socket.on(EVENTS.VOTE_RESULT, ({ tally, eliminatedId, defenders: defs }) => {
       setVoteTally(tally);
       if (defs) setDefenders(defs);
+      try { playVoteResult(); } catch(_) {}
     });
 
     // Eliminations
@@ -175,20 +216,19 @@ export default function App() {
 
     socket.on(EVENTS.NIGHT_RESULT, (result) => {
       setNightResult(result);
-      addSystemMessage(result.message);
-      const tType = result.eliminated ? 'elimination' : result.protectionSaved ? 'protection' : 'info';
+      addSystemMessage(result.message);      if (result.protectionSaved) { try { playProtectionSaved(); } catch(_) {} }      const tType = result.eliminated ? 'elimination' : result.protectionSaved ? 'protection' : 'info';
       setToasts(prev => [...prev, { id: Date.now() + Math.random(), title: '\ud83c\udf19 Night Result', message: result.message, type: tType }]);
     });
 
     // Chat
     socket.on(EVENTS.CHAT_MESSAGE, (msg) => {
       setMessages(prev => [...prev, msg]);
-      if (msg.senderId !== socket.id) try { playChatNotif(); } catch(e) {}
+      if (msg.senderId !== socket.id) try { playChatNotif(); } catch(_) {}
     });
 
     socket.on(EVENTS.HACKER_CHAT, (msg) => {
       setHackerMessages(prev => [...prev, msg]);
-      if (msg.senderId !== socket.id) try { playChatNotif(); } catch(e) {}
+      if (msg.senderId !== socket.id) try { playHackerChat(); } catch(_) {}
     });
 
     socket.on(EVENTS.HACKER_VOTE_UPDATE, (data) => {
@@ -200,6 +240,7 @@ export default function App() {
       setGameOverData(data);
       setPhase(PHASES.GAME_OVER);
       sessionStorage.removeItem('cw_inGame');
+      try { data.winner === 'hackers' ? playLose() : playWin(); } catch(_) {}
     });
 
     // Disconnect notices
@@ -238,6 +279,43 @@ export default function App() {
     socket.on(EVENTS.SKIP_UPDATE, ({ skipCount: sc, totalAlive: ta }) => {
       setSkipCount(sc);
       setTotalAliveForSkip(ta);
+    });
+
+    // Code files
+    socket.on(EVENTS.CODE_FILES_INIT, (data) => {
+      setCodeFiles(data);
+    });
+
+    socket.on(EVENTS.CODE_UPDATE, (data) => {
+      setCodeFiles(data);
+    });
+
+    socket.on(EVENTS.SECURITY_SCAN_RESULT, (data) => {
+      setSecurityScanResult(data);
+      try { data.suspicious ? playScanCorrupted() : playScanClean(); } catch(_) {}
+    });
+
+    socket.on(EVENTS.HACKER_INJECT_RESULT, (data) => {
+      setHackerInjectResult(data);
+      if (data.success) try { playHackerInject(); } catch(_) {}
+    });
+
+    socket.on(EVENTS.HACKER_INJECT_VOTE_UPDATE, (data) => {
+      setHackerInjectVoteStatus(data);
+    });
+
+    socket.on(EVENTS.ADMIN_REPAIR_RESULT, (data) => {
+      setAdminRepairResult(data);
+      if (data.repaired) try { playRepair(); } catch(_) {}
+    });
+
+    socket.on(EVENTS.ADMIN_SCAN_RESULT, (data) => {
+      setAdminScanResult(data);
+      try { data.corrupted ? playScanCorrupted() : playScanClean(); } catch(_) {}
+    });
+
+    socket.on(EVENTS.PLAYER_CODE_DATA, (data) => {
+      setPlayerCodeData(data);
     });
 
     return () => {
@@ -279,6 +357,10 @@ export default function App() {
     socket.emit(EVENTS.START_GAME, { advancedMode });
   };
 
+  const fillWithBots = (count) => {
+    socket.emit(EVENTS.FILL_WITH_BOTS, { count });
+  };
+
   const castVote = (targetId) => {
     socket.emit(EVENTS.CAST_VOTE, { targetId });
   };
@@ -300,6 +382,32 @@ export default function App() {
       socket.emit(EVENTS.SKIP_PHASE);
       setHasSkipped(true);
     }
+  };
+
+  const securityScan = (targetId) => {
+    socket.emit(EVENTS.SECURITY_SCAN, { targetId });
+  };
+
+  const hackerInject = (targetId, fileIdx, patchIdx) => {
+    socket.emit(EVENTS.HACKER_INJECT, { targetId, fileIdx, patchIdx });
+  };
+
+  const hackerInjectVote = (fileIdx, patchIdx) => {
+    socket.emit(EVENTS.HACKER_INJECT_VOTE, { fileIdx, patchIdx });
+  };
+
+  const adminRepair = (targetId) => {
+    socket.emit(EVENTS.ADMIN_REPAIR, { targetId });
+  };
+
+  const adminScanCorruption = (targetId) => {
+    socket.emit(EVENTS.ADMIN_SCAN_CORRUPTION, { targetId });
+    // Clear previous scan result so UI shows loading state
+    setAdminScanResult(null);
+  };
+
+  const getPlayerCode = (targetId) => {
+    socket.emit(EVENTS.GET_PLAYER_CODE, { targetId });
   };
 
   /* ═══════════════════════════════════════════
@@ -341,6 +449,7 @@ export default function App() {
           onCreateRoom={createRoom}
           onJoinRoom={joinRoom}
           onStartGame={startGame}
+          onFillBots={fillWithBots}
           onClearError={() => setErrorMsg('')}
         />
         {showRoleModal && (
@@ -368,6 +477,7 @@ export default function App() {
   // In-game
   return (
     <>
+      <SkyBackground phase={phase} />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <GameScreen
         myId={myId}
@@ -405,6 +515,20 @@ export default function App() {
         totalAliveForSkip={totalAliveForSkip}
         hasSkipped={hasSkipped}
         onSkipPhase={skipPhase}
+        // Code
+        codeFiles={codeFiles}
+        onSecurityScan={securityScan}
+        securityScanResult={securityScanResult}
+        onHackerInject={hackerInject}
+        hackerInjectResult={hackerInjectResult}
+        onHackerInjectVote={hackerInjectVote}
+        hackerInjectVoteStatus={hackerInjectVoteStatus}
+        onAdminRepair={adminRepair}
+        adminRepairResult={adminRepairResult}
+        onAdminScanCorruption={adminScanCorruption}
+        adminScanResult={adminScanResult}
+        onGetPlayerCode={getPlayerCode}
+        playerCodeData={playerCodeData}
       />
       {showRoleModal && (
         <RoleRevealModal

@@ -61,7 +61,7 @@ function renderPage(roomManager) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Code Wars — Admin Dashboard</title>
+  <title>IEEE Code Wars — Admin Dashboard</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -235,7 +235,7 @@ function renderPage(roomManager) {
 </head>
 <body>
   <div class="header">
-    <h1>⚔️ CODE WARS — Admin Dashboard</h1>
+    <h1>⚔️ IEEE CODE WARS — Admin Dashboard</h1>
     <div class="meta">
       Updated: <span id="timestamp">${data.timestamp}</span>
     </div>
@@ -257,7 +257,7 @@ function renderPage(roomManager) {
   </div>
 
   <div class="footer">
-    Code Wars Admin Dashboard — For game monitoring only. Do not share this URL with players.
+    IEEE Code Wars Admin Dashboard — For game monitoring only. Do not share this URL with players.
   </div>
 
   <script>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ROLES } from '../shared/constants';
+import { getAvatarForPlayer } from '../utils/avatars';
 
 /**
  * NightPanel – Night action UI for Hackers, Security Lead, and Admin.
@@ -71,7 +72,7 @@ export default function NightPanel({
 
   if (!amAlive) {
     return (
-      <div className="cyber-card text-center">
+      <div className="cyber-card text-center animate-fade-in">
         <p className="text-gray-500 text-sm py-4">
           ☠️ You have been eliminated. Watch the night unfold…
         </p>
@@ -82,8 +83,8 @@ export default function NightPanel({
   // Developer has no night action
   if (myRole === ROLES.DEVELOPER) {
     return (
-      <div className="cyber-card text-center">
-        <p className="text-6xl mb-3">💤</p>
+      <div className="cyber-card text-center animate-slide-up">
+        <p className="text-6xl mb-3 animate-float">💤</p>
         <p className="text-gray-400 text-sm">
           You are a Developer. Rest while the night passes…
         </p>
@@ -94,8 +95,38 @@ export default function NightPanel({
     );
   }
 
+  // Security Lead — waits during night, acts at sunrise
+  if (myRole === ROLES.SECURITY_LEAD) {
+    return (
+      <div className="cyber-card text-center animate-slide-up">
+        <p className="text-5xl mb-3">🔍</p>
+        <p className="text-gray-400 text-sm">
+          Night is active… The hackers are making their move.
+        </p>
+        <p className="text-yellow-400 text-xs mt-2 font-semibold">
+          At sunrise, you'll investigate the code. Stay alert!
+        </p>
+      </div>
+    );
+  }
+
+  // Admin — waits during night, acts at sunrise
+  if (myRole === ROLES.ADMIN) {
+    return (
+      <div className="cyber-card text-center animate-slide-up">
+        <p className="text-5xl mb-3 animate-float">🛠️</p>
+        <p className="text-gray-400 text-sm">
+          Night is active… The hackers are making their move.
+        </p>
+        <p className="text-green-400 text-xs mt-2 font-semibold">
+          At sunrise, you'll review code, repair bugs, and choose who to protect!
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="cyber-card">
+    <div className="cyber-card animate-slide-up">
       <h3 className={`text-xs uppercase tracking-wider text-${config.color} font-bold mb-3`}>
         {config.icon} {config.action}
       </h3>
@@ -158,17 +189,19 @@ export default function NightPanel({
       ) : (
         <>
           <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
-            {targets.map(p => (
+            {targets.map((p, idx) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedTarget(p.id)}
-                className={`w-full flex items-center justify-between rounded px-3 py-2 text-sm transition-all
+                className={`w-full flex items-center gap-3 rounded px-3 py-2 text-sm transition-all animate-slide-right
                   ${selectedTarget === p.id
                     ? `bg-${config.color}/20 border border-${config.color}/40 text-${config.color}`
                     : 'bg-cyber-darker border border-transparent hover:border-cyber-border text-gray-300'
                   }
                 `}
+                style={{ animationDelay: `${idx * 60}ms`, animationFillMode: 'both' }}
               >
+                <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-8 h-8 rounded-full bg-black/40" />
                 <span>{p.name}</span>
               </button>
             ))}
