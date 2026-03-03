@@ -225,6 +225,18 @@ function renderPage(roomManager) {
       padding: 3px 0;
       color: #94a3b8;
     }
+    .skip-btn {
+      background: #7f1d1d;
+      color: #fca5a5;
+      border: 1px solid #f8717144;
+      padding: 5px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: bold;
+    }
+    .skip-btn:hover { background: #991b1b; }
     .footer {
       text-align: center;
       padding: 20px;
@@ -281,6 +293,16 @@ function renderPage(roomManager) {
     }
 
     setInterval(refresh, 2000);
+
+    async function skipPhase(code) {
+      if (!confirm('Force-skip current phase for room ' + code + '?')) return;
+      try {
+        const r = await fetch('/api/admin/skip/' + code, { method: 'POST' });
+        const d = await r.json();
+        if (d.ok) { alert('Phase skipped! New phase: ' + d.newPhase); location.reload(); }
+        else alert('Error: ' + d.error);
+      } catch(e) { alert('Request failed: ' + e.message); }
+    }
   </script>
 </body>
 </html>`;
@@ -307,8 +329,9 @@ function renderRoomCard(room, roomManager) {
           <span class="room-code">${room.code}</span>
           <span class="phase-badge phase-${phaseClass}">${room.phase.replace(/_/g, ' ')}</span>
         </div>
-        <div style="font-size:0.8rem;color:#666">
-          Sprint ${room.sprint} ${room.advancedMode ? '⚡ Advanced' : ''}
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:0.8rem;color:#666">Sprint ${room.sprint} ${room.advancedMode ? '⚡ Advanced' : ''}</span>
+          <button class="skip-btn" onclick="skipPhase('${room.code}')">&#9197; Skip Phase</button>
         </div>
       </div>
 

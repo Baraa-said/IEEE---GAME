@@ -18,6 +18,7 @@ const EVENTS = Object.freeze({
   START_GAME: 'start_game',
   GAME_STARTED: 'game_started',
   FILL_WITH_BOTS: 'fill_with_bots',
+  SET_PLAYER_ROLE: 'set_player_role',
 
   /* ── Role ── */
   ROLE_ASSIGNED: 'role_assigned',
@@ -52,6 +53,7 @@ const EVENTS = Object.freeze({
   /* ── Skip ── */
   SKIP_PHASE: 'skip_phase',
   SKIP_UPDATE: 'skip_update',
+  FINISH_SUNRISE: 'finish_sunrise',
 
   /* ── Code Files ── */
   CODE_FILES_INIT: 'code_files_init',
@@ -67,6 +69,8 @@ const EVENTS = Object.freeze({
   ADMIN_SCAN_RESULT: 'admin_scan_result',
   ADMIN_REPAIR: 'admin_repair',
   ADMIN_REPAIR_RESULT: 'admin_repair_result',
+  ADMIN_BUG_GUESS: 'admin_bug_guess',
+  ADMIN_BUG_GUESS_RESULT: 'admin_bug_guess_result',
   SECURITY_SCAN: 'security_scan',
   SECURITY_SCAN_RESULT: 'security_scan_result',
   CODE_UPDATE: 'code_update',

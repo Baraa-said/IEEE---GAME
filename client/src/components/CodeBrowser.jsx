@@ -348,69 +348,22 @@ export default function CodeBrowser({
             </div>
           )}
 
-          {/* ═══ ADMIN: Scan-Result-Driven Repair Panel ═══ */}
+          {/* ═══ ADMIN: Code-view note (repair options are in the panel above) ═══ */}
           {myRole === ROLES.ADMIN && isSunrise && selectedPlayerId !== myId && (
             <div className="space-y-2">
-              {/* No scan result for this player yet */}
               {(!adminScanResult || adminScanResult.targetId !== selectedPlayerId) && (
                 <div className="text-xs p-3 rounded border bg-blue-900/10 border-blue-500/20 text-blue-300">
-                  🔍 Scan this player from the panel above to check for corruption.
+                  🔍 Scan this player from the panel above to reveal their code.
                 </div>
               )}
-
-              {/* Scan result: CLEAN */}
               {adminScanResult && adminScanResult.targetId === selectedPlayerId && !adminScanResult.corrupted && (
                 <div className="text-xs p-3 rounded border bg-green-900/20 border-green-500/30 text-green-400 font-semibold">
-                  ✅ Code is clean — no corruption found. Code view is locked.
+                  ✅ Code is clean — no corruption found.
                 </div>
               )}
-
-              {/* Scan result: CORRUPTED — show repair options */}
               {adminScanResult && adminScanResult.targetId === selectedPlayerId && adminScanResult.corrupted && (
-                <div className="space-y-2">
-                  <div className="p-2 rounded border bg-red-900/15 border-red-500/30">
-                    <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold mb-1">
-                      ⚠️ Corruption Found in {adminScanResult.targetName}'s Code
-                    </p>
-                    <p className="text-[9px] text-gray-400">
-                      Infected file: <span className="font-mono text-red-300">{adminScanResult.fileName}</span> — {adminScanResult.corruptionDesc}
-                    </p>
-                    <p className="text-[9px] text-gray-500 mt-1">
-                      Inspect the code below, then apply the fix.
-                    </p>
-                  </div>
-
-                  {/* Repair options — mirrors hacker inject panel */}
-                  {adminRepairResult && adminRepairResult.targetId === adminScanResult.targetId ? (
-                    <div className={`text-xs p-2 rounded border ${
-                      adminRepairResult.repaired
-                        ? 'bg-green-900/20 border-green-500/30 text-green-400'
-                        : 'bg-gray-800 border-gray-600 text-gray-400'
-                    }`}>
-                      {adminRepairResult.repaired
-                        ? <p>🔧 Fixed <span className="font-mono">{adminRepairResult.fileName}</span> — code restored!</p>
-                        : <p>⚠️ Nothing was repaired — code may already be clean.</p>
-                      }
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {(adminScanResult.repairOptions || []).map((opt) => (
-                        <div key={opt.fileIdx} className="space-y-0.5">
-                          <p className="text-[9px] text-gray-500 font-mono px-1">📄 {opt.fileName}:</p>
-                          {opt.fixes.map((fix, i) => (
-                            <button
-                              key={i}
-                              onClick={() => onAdminRepair?.(adminScanResult.targetId)}
-                              className="w-full text-left text-xs px-3 py-1.5 rounded border border-green-500/30 bg-green-900/15 text-green-300 hover:bg-green-900/40 hover:border-green-500/50 transition-all flex items-center gap-2"
-                            >
-                              <span className="text-green-400">🔧</span>
-                              <span>Fix: {fix.desc}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="text-xs p-2 rounded border bg-red-900/10 border-red-500/20 text-red-400">
+                  ⚠️ Corrupted file: <span className="font-mono">{adminScanResult.fileName}</span> — use the repair options in the panel above.
                 </div>
               )}
             </div>

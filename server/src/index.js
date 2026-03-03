@@ -58,6 +58,18 @@ io.on('connection', (socket) => {
   registerHandlers(io, socket);
 });
 
+// Admin action — force-skip current phase
+app.post('/api/admin/skip/:code', (req, res) => {
+  const room = roomManager.getRoom(req.params.code.toUpperCase());
+  if (!room) return res.json({ ok: false, error: 'Room not found' });
+  const skipable = ['night', 'sunrise', 'day_discussion', 'day_voting', 'day_defense'];
+  if (!skipable.includes(room.phase)) return res.json({ ok: false, error: `Cannot skip phase: ${room.phase}` });
+  const broadcast   = (event, data) => io.to(room.id).emit(event, data);
+  const sendToPlayer = (pid, event, data) => io.to(pid).emit(event, data);
+  room.skipPhase(broadcast, sendToPlayer);
+  res.json({ ok: true, newPhase: room.phase });
+});
+
 server.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n⚔️  IEEE Code Wars server running on http://localhost:${PORT}`);
   console.log(`   Local network: http://${getLocalIP()}:${PORT}\n`);

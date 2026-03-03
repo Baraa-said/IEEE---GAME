@@ -15,12 +15,14 @@ export default function LobbyScreen({
   onJoinRoom,
   onStartGame,
   onFillBots,
+  onRequestRole,
   onClearError,
 }) {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [advancedMode, setAdvancedMode] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(false);
+  const [chosenRole, setChosenRole] = useState(null);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -87,8 +89,8 @@ export default function LobbyScreen({
 
           {/* Fill with bots — host only, only when under minimum */}
           {isHost && (
-            <div className="mb-4 p-3 rounded-lg border border-blue-700/30 bg-blue-900/10">
-              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-2">
+            <div className="mb-4 p-3 rounded-lg border border-blue-700/30 bg-blue-900/10 space-y-3">
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider">
                 🤖 Test Mode
               </p>
               <div className="flex gap-2">
@@ -105,6 +107,48 @@ export default function LobbyScreen({
                 >
                   Fill to 8 with Bots
                 </button>
+              </div>
+
+              {/* Role picker */}
+              <div>
+                <p className="text-blue-300/70 text-[11px] uppercase tracking-wider mb-2">Choose Your Role (optional)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { role: 'Developer', icon: '👨‍💻', color: 'blue' },
+                    { role: 'Hacker',    icon: '🕷️',       color: 'red' },
+                    { role: 'Admin',     icon: '🛠️',       color: 'green' },
+                    { role: 'Security Lead', icon: '🔍', color: 'yellow' },
+                  ].map(({ role, icon, color }) => {
+                    const isSelected = chosenRole === role;
+                    const styles = {
+                      blue:   { sel: 'border-blue-400 bg-blue-800/50 text-blue-200',   def: 'border-blue-700/40 bg-blue-900/20 text-blue-400 hover:border-blue-500/60' },
+                      red:    { sel: 'border-red-400 bg-red-800/50 text-red-200',       def: 'border-red-700/40 bg-red-900/20 text-red-400 hover:border-red-500/60' },
+                      green:  { sel: 'border-green-400 bg-green-800/50 text-green-200', def: 'border-green-700/40 bg-green-900/20 text-green-400 hover:border-green-500/60' },
+                      yellow: { sel: 'border-yellow-400 bg-yellow-800/50 text-yellow-200', def: 'border-yellow-700/40 bg-yellow-900/20 text-yellow-400 hover:border-yellow-500/60' },
+                    };
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          const next = isSelected ? null : role;
+                          setChosenRole(next);
+                          if (next) onRequestRole(next);
+                          else onRequestRole('Developer'); // reset to random by picking Developer
+                        }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                          isSelected ? styles[color].sel : styles[color].def
+                        }`}
+                      >
+                        <span>{icon}</span>
+                        <span>{role}</span>
+                        {isSelected && <span className="ml-auto text-[10px] opacity-70">✓ picked</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {chosenRole && (
+                  <p className="text-green-400/70 text-[10px] mt-1.5">✅ You'll be assigned <strong>{chosenRole}</strong> when the game starts.</p>
+                )}
               </div>
             </div>
           )}

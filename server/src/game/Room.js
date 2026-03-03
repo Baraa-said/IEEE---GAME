@@ -64,6 +64,8 @@ class Room {
 
     // Skip votes
     this.skipVotes = new Set();
+    // Sunrise done votes (admin + security lead press "Finish Sunrise")
+    this.sunriseDone = new Set();
 
     // Code files per player (populated at game start)
     /** @type {Map<string, object>|null} */
@@ -197,6 +199,7 @@ class Room {
   setPhase(newPhase, broadcast, extra = {}) {
     this.clearTimer();
     this.skipVotes = new Set(); // Reset skip votes on phase change
+    this.sunriseDone = new Set(); // Reset sunrise done on phase change
     this.phase = newPhase;
     broadcast(EVENTS.PHASE_CHANGE, {
       phase: newPhase,
@@ -339,7 +342,9 @@ class Room {
     this.nightActions = {
       hackerTarget: null,
       hackerInjected: false,
-      adminProtectTarget: null,  // set during sunrise
+      adminProtectTarget: null,   // set when admin correctly guesses corrupted file
+      adminKillTarget: null,      // set when admin incorrectly guesses corrupted file
+      adminBugGuessUsed: false,   // admin only gets one guess per night
       adminRepairs: [],
       securityTargets: [],
       adminViews: new Set(),
@@ -403,6 +408,7 @@ class Room {
       alivePlayers: this.getAlivePlayers(),
       hackerTargetId: this.nightActions.hackerTarget,
       adminTargetId: this.nightActions.adminProtectTarget,
+      adminKillTargetId: this.nightActions.adminKillTarget,
       securityTargetIds: this.nightActions.securityTargets,
       systemStability: this.systemStability,
       advancedMode: this.advancedMode,
@@ -410,10 +416,22 @@ class Room {
 
     this.systemStability = result.newStability;
 
-    // Broadcast night outcome
+    // Broadcast admin wrong-guess kill (before hacker kill, so order is clear)
+    if (result.adminKilled) {
+      broadcast(EVENTS.PLAYER_ELIMINATED, {
+        id: result.adminKilled.id,
+        name: result.adminKilled.name,
+        role: result.adminKilled.role,
+        reason: 'Admin misidentified the corrupted file — wrongly terminated!',
+      });
+      this.log.push({ sprint: this.sprint, phase: 'night', eliminated: result.adminKilled.name, role: result.adminKilled.role });
+    }
+
+    // Broadcast hacker-attack night outcome
     if (result.eliminated) {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: { id: result.eliminated.id, name: result.eliminated.name, role: result.eliminated.role },
+        adminKilled: result.adminKilled ? { id: result.adminKilled.id, name: result.adminKilled.name, role: result.adminKilled.role } : null,
         protectionSaved: false,
         message: `${result.eliminated.name} was eliminated during the night!`,
       });
@@ -421,18 +439,28 @@ class Room {
     } else if (result.protectionSaved) {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: null,
+        adminKilled: result.adminKilled ? { id: result.adminKilled.id, name: result.adminKilled.name, role: result.adminKilled.role } : null,
         protectionSaved: true,
-        message: 'The Admin\'s protection saved someone from elimination! The hacker attack was blocked.',
+        message: 'The Admin correctly identified the corrupted file and saved the targeted player! The hacker attack was blocked.',
+      });
+    } else if (result.adminKilled) {
+      broadcast(EVENTS.NIGHT_RESULT, {
+        eliminated: null,
+        adminKilled: { id: result.adminKilled.id, name: result.adminKilled.name, role: result.adminKilled.role },
+        protectionSaved: false,
+        message: `${result.adminKilled.name} was wrongly terminated — the Admin pointed at the wrong file.`,
       });
     } else if (this.nightActions.hackerInjected) {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: null,
+        adminKilled: null,
         protectionSaved: false,
         message: 'A file was injected during the night! Someone\u2019s code has a hidden bug\u2026',
       });
     } else {
       broadcast(EVENTS.NIGHT_RESULT, {
         eliminated: null,
+        adminKilled: null,
         protectionSaved: false,
         message: 'The night passes quietly\u2026 no code was compromised.',
       });
@@ -485,18 +513,8 @@ class Room {
     this._lastSendToPlayer = sendToPlayer;
     player.nightTarget = targetId;
 
-    // Admin protection — only during SUNRISE
-    if (player.isAdmin()) {
-      if (this.phase !== PHASES.SUNRISE) return;
-      this.nightActions.adminProtectTarget = targetId;
-      sendToPlayer(playerId, EVENTS.NIGHT_ACTION_ACK, {
-        action: 'protect',
-        targetId,
-        targetName: this.getPlayer(targetId)?.name || 'Unknown',
-        message: `You chose to protect ${this.getPlayer(targetId)?.name || 'Unknown'} from hacker attacks.`,
-      });
-      return;
-    }
+    // Admin no longer directly chooses protection — it is determined by bug-guess result
+    if (player.isAdmin()) return;
 
     if (!player.isHacker()) return; // non-hackers use separate events
     if (this.phase !== PHASES.NIGHT) return; // hackers only act during night
@@ -628,6 +646,10 @@ class Room {
         for (const h of aliveHackers) {
           sendToPlayer(h.id, EVENTS.HACKER_INJECT_RESULT, injectResult);
         }
+        // Auto-advance night phase now that hackers finished
+        if (result.success) {
+          setTimeout(() => this.skipPhase(broadcast, sendToPlayer), 1500);
+        }
         return injectResult;
       } else {
         // Disagreement — reset inject votes
@@ -683,6 +705,51 @@ class Room {
   submitAdminCheck(playerId, targetId, sendToPlayer) {
     // Keep for backwards compat — admin now browses code manually
     return null;
+  }
+
+  /**
+   * Admin submits a bug-location guess for a corrupted player's code.
+   * ONE try only — correct → player protected; wrong → player dies.
+   *
+   * @param {string} playerId  – admin's socket id
+   * @param {string} targetId  – the player being inspected
+   * @param {number} fileIdx   – index of the file the admin thinks contains the bug
+   * @param {function} sendToPlayer
+   * @returns {object|null} result info
+   */
+  submitAdminBugGuess(playerId, targetId, fileIdx, sendToPlayer) {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.alive || !player.isAdmin() || this.phase !== PHASES.SUNRISE) return null;
+    if (this.nightActions.adminBugGuessUsed) return { error: 'already_guessed' };
+
+    this._lastSendToPlayer = sendToPlayer;
+
+    // Get actual corruption details
+    const details = CodeEngine.getCorruptionDetails(this.codeStore, targetId);
+    if (!details.corrupted) return { error: 'not_corrupted' };
+
+    const correct = details.fileIdx === fileIdx;
+    const target = this.getPlayer(targetId);
+
+    this.nightActions.adminBugGuessUsed = true;
+
+    if (correct) {
+      // Correct! This player will be protected from the hacker's attack.
+      this.nightActions.adminProtectTarget = targetId;
+    } else {
+      // Wrong! This player will be eliminated at sunrise resolution.
+      this.nightActions.adminKillTarget = targetId;
+    }
+
+    return {
+      correct,
+      targetId,
+      targetName: target?.name || 'Unknown',
+      guessedFileIdx: fileIdx,
+      actualFileIdx: details.fileIdx,
+      guessedFileName: details.files?.[fileIdx]?.name || `File ${fileIdx}`,
+      actualFileName: details.fileName,
+    };
   }
 
   /**
@@ -743,9 +810,12 @@ class Room {
 
     const scanResult = CodeEngine.scanForHackerSignatures(this.codeStore, targetId);
     const target = this.getPlayer(targetId);
+    console.log('[SEC-SCAN-DETAIL] targetId=%s targetName=%s targetRole=%s scanResult=%s codeStoreHas=%s',
+      targetId, target?.name, target?.role, JSON.stringify(scanResult), this.codeStore.has(targetId));
     return {
       targetId,
       targetName: target?.name || 'Unknown',
+      isHacker: scanResult.suspicious,
       suspicious: scanResult.suspicious,
       suspiciousFunctions: scanResult.suspiciousFunctions,
       suspiciousFile: scanResult.suspiciousFile || null,

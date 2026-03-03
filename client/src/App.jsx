@@ -73,6 +73,7 @@ export default function App() {
   const [playerCodeData, setPlayerCodeData] = useState(null);
   const [hackerInjectVoteStatus, setHackerInjectVoteStatus] = useState(null);
   const [adminScanResult, setAdminScanResult] = useState(null);
+  const [adminBugGuessResult, setAdminBugGuessResult] = useState(null);
 
   // Apply role-based theme to document when role changes
   useEffect(() => {
@@ -165,6 +166,7 @@ export default function App() {
         setSecurityScanResult(null);
         setPlayerCodeData(null);
         setAdminScanResult(null);
+        setAdminBugGuessResult(null);
       }
       // Phase change sound & toast
       try { playPhaseChange(p === PHASES.NIGHT); } catch(e) {}
@@ -314,6 +316,10 @@ export default function App() {
       try { data.corrupted ? playScanCorrupted() : playScanClean(); } catch(_) {}
     });
 
+    socket.on(EVENTS.ADMIN_BUG_GUESS_RESULT, (data) => {
+      setAdminBugGuessResult(data);
+    });
+
     socket.on(EVENTS.PLAYER_CODE_DATA, (data) => {
       setPlayerCodeData(data);
     });
@@ -361,6 +367,10 @@ export default function App() {
     socket.emit(EVENTS.FILL_WITH_BOTS, { count });
   };
 
+  const requestRole = (role) => {
+    socket.emit(EVENTS.SET_PLAYER_ROLE, { role });
+  };
+
   const castVote = (targetId) => {
     socket.emit(EVENTS.CAST_VOTE, { targetId });
   };
@@ -404,10 +414,19 @@ export default function App() {
     socket.emit(EVENTS.ADMIN_SCAN_CORRUPTION, { targetId });
     // Clear previous scan result so UI shows loading state
     setAdminScanResult(null);
+    setAdminBugGuessResult(null);
+  };
+
+  const adminBugGuess = (targetId, fileIdx) => {
+    socket.emit(EVENTS.ADMIN_BUG_GUESS, { targetId, fileIdx });
   };
 
   const getPlayerCode = (targetId) => {
     socket.emit(EVENTS.GET_PLAYER_CODE, { targetId });
+  };
+
+  const finishSunrise = () => {
+    socket.emit(EVENTS.FINISH_SUNRISE);
   };
 
   /* ═══════════════════════════════════════════
@@ -450,6 +469,7 @@ export default function App() {
           onJoinRoom={joinRoom}
           onStartGame={startGame}
           onFillBots={fillWithBots}
+          onRequestRole={requestRole}
           onClearError={() => setErrorMsg('')}
         />
         {showRoleModal && (
@@ -527,8 +547,11 @@ export default function App() {
         adminRepairResult={adminRepairResult}
         onAdminScanCorruption={adminScanCorruption}
         adminScanResult={adminScanResult}
+        onAdminBugGuess={adminBugGuess}
+        adminBugGuessResult={adminBugGuessResult}
         onGetPlayerCode={getPlayerCode}
         playerCodeData={playerCodeData}
+        onFinishSunrise={finishSunrise}
       />
       {showRoleModal && (
         <RoleRevealModal

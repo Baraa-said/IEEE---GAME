@@ -69,9 +69,10 @@ class RoleEngine {
    *
    * @returns {{ eliminated: Player|null, investigationResult: {targetId,isHacker}|null, protectionSaved: boolean, newStability: number }}
    */
-  static resolveNight({ alivePlayers, hackerTargetId, adminTargetId, securityTargetIds, systemStability, advancedMode }) {
+  static resolveNight({ alivePlayers, hackerTargetId, adminTargetId, adminKillTargetId, securityTargetIds, systemStability, advancedMode }) {
     const result = {
       eliminated: null,
+      adminKilled: null,
       investigationResults: [],
       protectionSaved: false,
       newStability: systemStability,
@@ -91,15 +92,24 @@ class RoleEngine {
       }
     }
 
+    // --- Admin Wrong-Guess Kill (Admin pointed at the wrong file → player dies) ---
+    if (adminKillTargetId) {
+      const victim = alivePlayers.find(p => p.id === adminKillTargetId);
+      if (victim && victim.alive) {
+        victim.alive = false;
+        result.adminKilled = victim;
+      }
+    }
+
     // --- Protection & Attack ---
     if (hackerTargetId) {
       const protectedId = adminTargetId;
       if (hackerTargetId === protectedId) {
-        // Attack blocked!
+        // Attack blocked by admin's correct guess!
         result.protectionSaved = true;
       } else {
         const victim = alivePlayers.find(p => p.id === hackerTargetId);
-        if (victim) {
+        if (victim && victim.alive) {
           victim.alive = false;
           result.eliminated = victim;
           if (advancedMode) {

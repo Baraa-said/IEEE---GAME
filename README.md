@@ -179,3 +179,10 @@ The two-consecutive-votes elimination mechanic works as follows:
 ---
 
 **Built for IEEE Game Development Workshop** 🎓
+to run the code :
+cloudflared tunnel --url http://localhost:4000 2>/tmp/cf-tunnel.log & sleep 8 && grep -oE 'https://[a-z0-9\-]+\.trycloudflare\.com' /tmp/cf-tunnel.log | head -1
+to kill anythin 
+lsof -ti:4000 | xargs kill -9 2>/dev/null; sleep 1; cd /Users/mac/Documents/IEEE---GAME/server && node src/index.js &
+
+to verify the srver 
+curl -s http://localhost:4000/api/health

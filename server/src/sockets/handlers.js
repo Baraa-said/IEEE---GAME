@@ -96,6 +96,21 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
+   *  SET PLAYER ROLE (host picks preferred role before game starts)
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.SET_PLAYER_ROLE, ({ role } = {}) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || room.phase !== PHASES.LOBBY) return;
+    const player = room.getPlayer(socket.id);
+    if (!player) return;
+    const valid = ['Developer', 'Hacker', 'Security Lead', 'Admin'];
+    if (!valid.includes(role)) return;
+    player.preferredRole = role;
+    // Confirm back to client only
+    socket.emit(EVENTS.SYSTEM_MESSAGE, { message: `✅ Role preference set to ${role}. Will be assigned when possible.` });
+  });
+
+  /* ──────────────────────────────────────────
    *  START GAME
    * ────────────────────────────────────────── */
   socket.on(EVENTS.START_GAME, ({ advancedMode }) => {
@@ -112,6 +127,22 @@ function registerHandlers(io, socket) {
     if (!result.ok) {
       socket.emit(EVENTS.ERROR, { message: result.reason });
       return;
+    }
+
+    // Honor preferred roles — swap each player who has a preference with whoever holds that role
+    const playerArr = [...room.players.values()];
+    for (const p of playerArr) {
+      if (!p.preferredRole || p.role === p.preferredRole) continue;
+      const holder = playerArr.find(other => other.id !== p.id && other.role === p.preferredRole);
+      if (holder) {
+        const tmp = holder.role;
+        holder.role = p.role;
+        p.role = p.preferredRole;
+      } else {
+        // Desired role not held by anyone else — just assign it (edge case)
+        p.role = p.preferredRole;
+      }
+      delete p.preferredRole;
     }
 
     if (advancedMode) {
@@ -210,6 +241,35 @@ function registerHandlers(io, socket) {
       sendToPlayerFn,
       (event, data) => broadcastToRoom(room.id, event, data)
     );
+  });
+
+  /* ──────────────────────────────────────────
+   *  FINISH SUNRISE (Admin / Security Lead press "Done")
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.FINISH_SUNRISE, () => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || room.phase !== PHASES.SUNRISE) return;
+    const player = room.getPlayer(socket.id);
+    if (!player || !player.alive) return;
+    if (player.role !== ROLES.ADMIN && player.role !== ROLES.SECURITY_LEAD) return;
+
+    room.sunriseDone.add(player.role);
+
+    // Determine which special roles are alive
+    const alive = room.getAlivePlayers();
+    const adminAlive = alive.some(p => p.role === ROLES.ADMIN);
+    const secAlive  = alive.some(p => p.role === ROLES.SECURITY_LEAD);
+    const needed = new Set();
+    if (adminAlive) needed.add(ROLES.ADMIN);
+    if (secAlive)   needed.add(ROLES.SECURITY_LEAD);
+
+    const allDone = [...needed].every(r => room.sunriseDone.has(r));
+    if (allDone) {
+      room.skipPhase(
+        (event, data) => broadcastToRoom(room.id, event, data),
+        (playerId, event, data) => io.to(playerId).emit(event, data)
+      );
+    }
   });
 
   /* ──────────────────────────────────────────
@@ -432,6 +492,29 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
+   *  ADMIN BUG GUESS (Admin identifies the file containing the bug)
+   *  During SUNRISE only. Admin has ONE try:
+   *    - Correct file → the player is protected from the hacker attack.
+   *    - Wrong file   → the player is eliminated.
+   * ────────────────────────────────────────── */
+  socket.on(EVENTS.ADMIN_BUG_GUESS, ({ targetId, fileIdx }) => {
+    const room = roomManager.getRoomBySocket(socket.id);
+    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+
+    const player = room.getPlayer(socket.id);
+    if (!player || !player.alive || !player.isAdmin()) return;
+
+    const result = room.submitAdminBugGuess(socket.id, targetId, fileIdx, sendToPlayerFn);
+    if (result && !result.error) {
+      socket.emit(EVENTS.ADMIN_BUG_GUESS_RESULT, result);
+    } else if (result?.error === 'already_guessed') {
+      socket.emit(EVENTS.ERROR, { message: 'You have already used your one bug-location guess this night.' });
+    } else if (result?.error === 'not_corrupted') {
+      socket.emit(EVENTS.ERROR, { message: 'That player\'s code is not corrupted.' });
+    }
+  });
+
+  /* ──────────────────────────────────────────
    *  ADMIN REPAIR (Admin fixes a corrupted player's code)
    * ────────────────────────────────────────── */
   socket.on(EVENTS.ADMIN_REPAIR, ({ targetId }) => {
@@ -456,9 +539,13 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.SECURITY_SCAN, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) {
+      console.log('[SEC-SCAN] Blocked: room=%s codeStore=%s phase=%s', !!room, !!(room && room.codeStore), room?.phase);
+      return;
+    }
 
     const result = room.submitSecurityScan(socket.id, targetId, sendToPlayerFn);
+    console.log('[SEC-SCAN] targetId=%s result=%s', targetId, JSON.stringify(result));
     if (result) {
       socket.emit(EVENTS.SECURITY_SCAN_RESULT, result);
     }
@@ -543,7 +630,7 @@ function getRoleDescription(role) {
     case ROLES.SECURITY_LEAD:
       return 'You are the Security Lead. Each night, browse up to 2 players\' code looking for suspicious function names. If you find functions like exploit_buffer or rootkit_load — that player is a Hacker!';
     case ROLES.ADMIN:
-      return 'You are the Admin. Each night, browse up to 2 players\' code looking for obvious bugs (runtime errors). If you find corruption, click Repair to fix it!';
+      return 'You are the Admin. At sunrise, scan a player\'s code for corruption. If corrupted, you\'ll see all their files — choose which file has the bug. ONE try only: correct → you protect that player; wrong → that player is eliminated!';
     default:
       return '';
   }

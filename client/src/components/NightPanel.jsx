@@ -183,10 +183,46 @@ export default function NightPanel({
       )}
 
       {submitted ? (
-        <div className="text-center py-4">
-          <p className="text-cyber-green text-sm">✓ Action submitted. Waiting for others…</p>
+        <div className="text-center py-6">
+          <p className="text-4xl mb-2 animate-float">🕷️</p>
+          <p className="text-cyber-green text-sm font-semibold">✓ Vote submitted. Waiting for other hackers…</p>
         </div>
+      ) : myRole === ROLES.HACKER ? (
+        /* ── Hacker big fragment vote cards ── */
+        <>
+          <p className="text-xs text-gray-500 mb-3 text-center">Choose your target — all hackers must agree:</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {targets.map((p, idx) => {
+              const isSelected = selectedTarget === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => { setSelectedTarget(p.id); setSubmitted(false); }}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all hover:scale-105 animate-slide-up
+                    ${isSelected
+                      ? 'border-cyber-red bg-cyber-red/20 text-cyber-red shadow-lg shadow-cyber-red/20'
+                      : 'border-cyber-border bg-cyber-darker text-gray-300 hover:border-cyber-red/50 hover:bg-cyber-red/5'
+                    }
+                  `}
+                  style={{ animationDelay: `${idx * 70}ms`, animationFillMode: 'both' }}
+                >
+                  <img src={getAvatarForPlayer(p.name)} alt={p.name} className={`w-14 h-14 rounded-full border-2 ${isSelected ? 'border-cyber-red' : 'border-gray-700'}`} />
+                  <span className="font-bold text-sm">{p.name}</span>
+                  {isSelected && <span className="text-xs text-cyber-red animate-pulse">🎯 Selected</span>}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={!selectedTarget}
+            className="w-full cyber-btn cyber-btn-red disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            🕷️ Cast Vote — Inject Bug
+          </button>
+        </>
       ) : (
+        /* ── Other roles (Security Lead during night — shouldn't render, but fallback) ── */
         <>
           <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
             {targets.map((p, idx) => (
@@ -206,15 +242,10 @@ export default function NightPanel({
               </button>
             ))}
           </div>
-
           <button
             onClick={handleSubmit}
             disabled={!selectedTarget}
-            className={`w-full cyber-btn ${
-              myRole === ROLES.HACKER ? 'cyber-btn-red' :
-              myRole === ROLES.ADMIN ? 'cyber-btn-green' :
-              'cyber-btn-blue'
-            }`}
+            className={`w-full cyber-btn ${myRole === ROLES.ADMIN ? 'cyber-btn-green' : 'cyber-btn-blue'}`}
           >
             Confirm {config.action}
           </button>
