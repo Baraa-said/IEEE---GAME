@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getAvatarForPlayer } from '../utils/avatars';
 import { playVoteCast, playClick } from '../utils/sounds';
+import { Vote } from 'lucide-react';
 
 /**
  * VotingPanel – UI for casting votes during the Day voting phase.
@@ -31,8 +32,8 @@ export default function VotingPanel({
   return (
     <div className="cyber-card animate-slide-up">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs uppercase tracking-wider text-cyber-blue font-bold">
-          🗳️ Vote to Suspend Account
+        <h3 className="text-xs uppercase tracking-wider text-cyber-blue font-bold flex items-center gap-1.5">
+          <Vote size={14} /> Vote to Suspend Account
         </h3>
         <span className="text-xs text-gray-400">
           {votesCast}/{totalVoters} voted

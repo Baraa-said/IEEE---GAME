@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ROLES } from '../shared/constants';
 import { getAvatarForPlayer } from '../utils/avatars';
+import { Search, Bug, Wrench, Moon, Skull, CheckCircle, AlertTriangle, Crosshair } from 'lucide-react';
 
 /**
  * NightPanel – Night action UI for Hackers, Security Lead, and Admin.
@@ -56,14 +57,14 @@ export default function NightPanel({
     if (myRole === ROLES.SECURITY_LEAD) {
       return {
         action: 'Investigate Player',
-        icon: '🔍',
+        Icon: Search,
         color: 'cyber-yellow',
       };
     }
     const labels = {
-      [ROLES.HACKER]: { action: 'Inject Critical Bug', icon: '🕷️', color: 'cyber-red' },
-      [ROLES.ADMIN]: { action: 'Debug (Protect) Player', icon: '🛠️', color: 'cyber-green' },
-      [ROLES.DEVELOPER]: { action: 'Sleep', icon: '💤', color: 'gray-400' },
+      [ROLES.HACKER]: { action: 'Inject Critical Bug', Icon: Bug, color: 'cyber-red' },
+      [ROLES.ADMIN]: { action: 'Debug (Protect) Player', Icon: Wrench, color: 'cyber-green' },
+      [ROLES.DEVELOPER]: { action: 'Sleep', Icon: Moon, color: 'gray-400' },
     };
     return labels[myRole] || labels[ROLES.DEVELOPER];
   };
@@ -73,8 +74,8 @@ export default function NightPanel({
   if (!amAlive) {
     return (
       <div className="cyber-card text-center animate-fade-in">
-        <p className="text-gray-500 text-sm py-4">
-          ☠️ You have been eliminated. Watch the night unfold…
+        <p className="text-gray-500 text-sm py-4 flex items-center justify-center gap-2">
+          <Skull size={16} /> You have been eliminated. Watch the night unfold…
         </p>
       </div>
     );
@@ -84,7 +85,7 @@ export default function NightPanel({
   if (myRole === ROLES.DEVELOPER) {
     return (
       <div className="cyber-card text-center animate-slide-up">
-        <p className="text-6xl mb-3 animate-float">💤</p>
+        <p className="text-6xl mb-3 animate-float flex justify-center"><Moon size={48} /></p>
         <p className="text-gray-400 text-sm">
           You are a Developer. Rest while the night passes…
         </p>
@@ -99,7 +100,7 @@ export default function NightPanel({
   if (myRole === ROLES.SECURITY_LEAD) {
     return (
       <div className="cyber-card text-center animate-slide-up">
-        <p className="text-5xl mb-3">🔍</p>
+        <p className="text-5xl mb-3 flex justify-center"><Search size={40} /></p>
         <p className="text-gray-400 text-sm">
           Night is active… The hackers are making their move.
         </p>
@@ -114,7 +115,7 @@ export default function NightPanel({
   if (myRole === ROLES.ADMIN) {
     return (
       <div className="cyber-card text-center animate-slide-up">
-        <p className="text-5xl mb-3 animate-float">🛠️</p>
+        <p className="text-5xl mb-3 animate-float flex justify-center"><Wrench size={40} /></p>
         <p className="text-gray-400 text-sm">
           Night is active… The hackers are making their move.
         </p>
@@ -127,8 +128,8 @@ export default function NightPanel({
 
   return (
     <div className="cyber-card animate-slide-up">
-      <h3 className={`text-xs uppercase tracking-wider text-${config.color} font-bold mb-3`}>
-        {config.icon} {config.action}
+      <h3 className={`text-xs uppercase tracking-wider text-${config.color} font-bold mb-3 flex items-center gap-1.5`}>
+        {config.Icon && <config.Icon size={14} />} {config.action}
       </h3>
 
       {/* Investigation results from previous night (array format) */}
@@ -141,7 +142,7 @@ export default function NightPanel({
                 : 'bg-cyber-green/10 border border-cyber-green/30 text-cyber-green'
             }`}>
               Investigation: <strong>{res.targetName}</strong> is{' '}
-              {res.isHacker ? '🕷️ a HACKER!' : '✅ NOT a Hacker.'}
+              {res.isHacker ? <><Bug size={12} className="inline" /> a HACKER!</> : <><CheckCircle size={12} className="inline" /> NOT a Hacker.</>}
             </div>
           ))}
         </div>
@@ -155,7 +156,7 @@ export default function NightPanel({
             : 'bg-cyber-green/10 border border-cyber-green/30 text-cyber-green'
         }`}>
           Last investigation: <strong>{investigationResult.targetName}</strong> is{' '}
-          {investigationResult.isHacker ? '🕷️ a HACKER!' : '✅ NOT a Hacker.'}
+          {investigationResult.isHacker ? <><Bug size={12} className="inline" /> a HACKER!</> : <><CheckCircle size={12} className="inline" /> NOT a Hacker.</>}
         </div>
       )}
       {myRole === ROLES.HACKER && hackerVoteStatus && (
@@ -165,11 +166,11 @@ export default function NightPanel({
             : 'bg-cyber-darker border-cyber-red/20'
         }`}>
           {hackerVoteStatus.disagreement && (
-            <p className="text-cyber-red font-bold mb-1">⚠️ You must ALL agree on the same target! Votes reset.</p>
+            <p className="text-cyber-red font-bold mb-1 flex items-center gap-1"><AlertTriangle size={12} /> You must ALL agree on the same target! Votes reset.</p>
           )}
           {Object.values(hackerVoteStatus.votes || {}).map((v, i) => (
-            <p key={i} className="text-gray-400">
-              🕷️ {v.hackerName} → <span className="text-cyber-red">{v.targetName}</span>
+            <p key={i} className="text-gray-400 flex items-center gap-1">
+              <Bug size={12} /> {v.hackerName} → <span className="text-cyber-red">{v.targetName}</span>
             </p>
           ))}
           {!hackerVoteStatus.disagreement && (
@@ -184,7 +185,7 @@ export default function NightPanel({
 
       {submitted ? (
         <div className="text-center py-6">
-          <p className="text-4xl mb-2 animate-float">🕷️</p>
+          <p className="text-4xl mb-2 animate-float flex justify-center"><Bug size={32} /></p>
           <p className="text-cyber-green text-sm font-semibold">✓ Vote submitted. Waiting for other hackers…</p>
         </div>
       ) : myRole === ROLES.HACKER ? (
@@ -208,7 +209,7 @@ export default function NightPanel({
                 >
                   <img src={getAvatarForPlayer(p.name)} alt={p.name} className={`w-14 h-14 rounded-full border-2 ${isSelected ? 'border-cyber-red' : 'border-gray-700'}`} />
                   <span className="font-bold text-sm">{p.name}</span>
-                  {isSelected && <span className="text-xs text-cyber-red animate-pulse">🎯 Selected</span>}
+                  {isSelected && <span className="text-xs text-cyber-red animate-pulse flex items-center gap-1"><Crosshair size={12} /> Selected</span>}
                 </button>
               );
             })}
@@ -218,7 +219,7 @@ export default function NightPanel({
             disabled={!selectedTarget}
             className="w-full cyber-btn cyber-btn-red disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            🕷️ Cast Vote — Inject Bug
+            <Bug size={14} className="inline-block mr-1" /> Cast Vote — Inject Bug
           </button>
         </>
       ) : (

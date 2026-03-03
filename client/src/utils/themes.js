@@ -1,4 +1,5 @@
 import { ROLES } from '../shared/constants';
+import { Bug, Wrench, Search, Code2 } from 'lucide-react';
 
 /**
  * Role-based theme configurations for IEEE Code Wars.
@@ -40,7 +41,7 @@ export const ROLE_THEMES = {
     // Phase indicator accent
     phaseAccent: 'border-l-4 border-l-cyber-red/50',
     // Icon
-    icon: '🕷️',
+    icon: Bug,
     // CSS custom properties
     cssVars: {
       '--theme-primary': '#ff3366',
@@ -75,7 +76,7 @@ export const ROLE_THEMES = {
     insetShadow: 'shadow-[inset_0_0_120px_rgba(0,255,100,0.06)]',
     scrollThumb: '#003d1a',
     phaseAccent: 'border-l-4 border-l-cyber-green/50',
-    icon: '🛠️',
+    icon: Wrench,
     cssVars: {
       '--theme-primary': '#00ff88',
       '--theme-primary-rgb': '0, 255, 136',
@@ -109,7 +110,7 @@ export const ROLE_THEMES = {
     insetShadow: 'shadow-[inset_0_0_120px_rgba(255,200,50,0.06)]',
     scrollThumb: '#3d3200',
     phaseAccent: 'border-l-4 border-l-cyber-yellow/50',
-    icon: '🔍',
+    icon: Search,
     cssVars: {
       '--theme-primary': '#ffcc00',
       '--theme-primary-rgb': '255, 204, 0',
@@ -143,7 +144,7 @@ export const ROLE_THEMES = {
     insetShadow: 'shadow-[inset_0_0_120px_rgba(0,150,255,0.06)]',
     scrollThumb: '#001a3d',
     phaseAccent: 'border-l-4 border-l-cyber-blue/50',
-    icon: '👨‍💻',
+    icon: Code2,
     cssVars: {
       '--theme-primary': '#00bbff',
       '--theme-primary-rgb': '0, 187, 255',

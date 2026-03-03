@@ -1,16 +1,48 @@
 import React from 'react';
 import { ROLES } from '../shared/constants';
 import { getAvatarForPlayer, getAvatarForRole } from '../utils/avatars';
+import { Bug, Wrench, Search, Code2, Crown } from 'lucide-react';
 
 /**
- * PlayerList – Displays alive / dead players with role badges for dead ones.
+ * PlayerList – Displays alive / dead players with role badges.
+ * Shows your own role, and if you're a Hacker, highlights fellow hackers.
  */
-export default function PlayerList({ alivePlayers, deadPlayers, myId, defenders, voteTally }) {
+export default function PlayerList({ alivePlayers, deadPlayers, myId, myRole, fellowHackers, defenders, voteTally }) {
   const roleIcons = {
-    [ROLES.DEVELOPER]: '👨‍💻',
-    [ROLES.HACKER]: '🕷️',
-    [ROLES.SECURITY_LEAD]: '🔍',
-    [ROLES.ADMIN]: '🛠️',
+    [ROLES.DEVELOPER]: Code2,
+    [ROLES.HACKER]: Bug,
+    [ROLES.SECURITY_LEAD]: Search,
+    [ROLES.ADMIN]: Wrench,
+  };
+
+  const roleColors = {
+    [ROLES.DEVELOPER]: 'text-blue-400',
+    [ROLES.HACKER]: 'text-cyber-red',
+    [ROLES.SECURITY_LEAD]: 'text-cyan-400',
+    [ROLES.ADMIN]: 'text-yellow-400',
+  };
+
+  // Build set of fellow hacker IDs for quick lookup
+  const hackerIds = new Set((fellowHackers || []).map(h => h.id || h));
+  const iAmHacker = myRole === ROLES.HACKER;
+
+  // Determine visible role for a player
+  const getVisibleRole = (player) => {
+    if (player.id === myId) return myRole; // Always see own role
+    if (iAmHacker && hackerIds.has(player.id)) return ROLES.HACKER; // Hackers see each other
+    return null; // Unknown
+  };
+
+  const RoleBadge = ({ role }) => {
+    if (!role) return null;
+    const Icon = roleIcons[role];
+    const color = roleColors[role] || 'text-gray-400';
+    return (
+      <span className={`flex items-center gap-0.5 text-[10px] ${color} bg-black/30 rounded px-1 py-0.5`}>
+        {Icon && <Icon size={10} />}
+        <span className="capitalize">{role}</span>
+      </span>
+    );
   };
 
   return (
@@ -28,6 +60,7 @@ export default function PlayerList({ alivePlayers, deadPlayers, myId, defenders,
           const isMe = p.id === myId;
           const isDefender = defenders?.includes(p.id);
           const voteCount = voteTally?.[p.id] || 0;
+          const visibleRole = getVisibleRole(p);
           return (
             <div
               key={p.id}
@@ -41,12 +74,15 @@ export default function PlayerList({ alivePlayers, deadPlayers, myId, defenders,
                 <span className={isMe ? 'text-cyber-green font-semibold' : 'text-gray-300'}>
                   {p.name}
                 </span>
-                {p.isHost && <span className="text-[10px]">👑</span>}
+                {p.isHost && <span className="text-[10px]"><Crown size={12} /></span>}
                 {isMe && <span className="text-[10px] text-cyber-green/60">(you)</span>}
               </span>
-              {voteCount > 0 && (
-                <span className="text-xs text-cyber-red font-bold">{voteCount} votes</span>
-              )}
+              <span className="flex items-center gap-1.5">
+                {visibleRole && <RoleBadge role={visibleRole} />}
+                {voteCount > 0 && (
+                  <span className="text-xs text-cyber-red font-bold">{voteCount} votes</span>
+                )}
+              </span>
             </div>
           );
         })}

@@ -2,6 +2,7 @@ import React from 'react';
 import { ROLES } from '../shared/constants';
 import { getAvatarForRole } from '../utils/avatars';
 import { getTheme } from '../utils/themes';
+import { Bug } from 'lucide-react';
 
 /**
  * RoleRevealModal – Full-screen overlay that reveals the player's role
@@ -29,7 +30,7 @@ export default function RoleRevealModal({ role, description, fellowHackers, onCl
         <div className="flex justify-center mb-6">
           <div className="relative">
             <img src={getAvatarForRole(role)} alt={role} className="w-32 h-32 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-2xl">{theme.icon}</div>
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">{theme.icon && <theme.icon size={24} />}</div>
           </div>
         </div>
 
@@ -55,7 +56,7 @@ export default function RoleRevealModal({ role, description, fellowHackers, onCl
             <p className="text-xs text-cyber-red uppercase tracking-wider mb-2">Fellow Hackers</p>
             <div className="space-y-1">
               {fellowHackers.map(h => (
-                <p key={h.id} className="text-sm text-gray-300">🕷️ {h.name}</p>
+                <p key={h.id} className="text-sm text-gray-300 flex items-center gap-1"><Bug size={14} /> {h.name}</p>
               ))}
             </div>
           </div>

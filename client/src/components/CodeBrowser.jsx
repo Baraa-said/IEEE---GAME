@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ROLES, PHASES } from '../shared/constants';
 import { getAvatarForPlayer } from '../utils/avatars';
+import { Folder, Bug, CheckCircle, Syringe, AlertTriangle, Search, File, Zap } from 'lucide-react';
 
 /**
  * CodeBrowser – Interactive C-code file viewer with manual night actions.
@@ -212,7 +213,7 @@ export default function CodeBrowser({
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-cyber-green text-sm">📁</span>
+          <span className="text-cyber-green text-sm"><Folder size={14} /></span>
           <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold">
             {isNight ? 'Code Files (Night)' : isSunrise ? 'Code Files (Sunrise)' : 'My Code Files'}
           </h3>
@@ -266,21 +267,21 @@ export default function CodeBrowser({
           {myRole === ROLES.HACKER && isNight && (
             <div className="space-y-2">
               {!hackerVoteStatus?.agreed ? (
-                <div className="text-xs p-2 rounded border bg-gray-800 border-gray-600 text-gray-400">
-                  🕷️ Waiting for all hackers to agree on a target…
+                <div className="text-xs p-2 rounded border bg-gray-800 border-gray-600 text-gray-400 flex items-center gap-1">
+                  <Bug size={12} /> Waiting for all hackers to agree on a target…
                 </div>
               ) : alreadyInjected ? (
                 <div className="text-xs p-3 rounded border bg-red-900/20 border-red-500/30 text-red-400">
-                  ✅ Injection complete! Your team has corrupted <span className="font-bold">{hackerVoteStatus.agreedTargetName}</span>'s code.
+                  <span className="flex items-center gap-1"><CheckCircle size={12} /> Injection complete! Your team has corrupted <span className="font-bold">{hackerVoteStatus.agreedTargetName}</span>'s code.</span>
                   {hackerInjectResult && (
-                    <p className="mt-1 text-[10px]">💉 {hackerInjectResult.desc} in <span className="font-mono">{hackerInjectResult.fileName}</span></p>
+                    <p className="mt-1 text-[10px] flex items-center gap-1"><Syringe size={10} /> {hackerInjectResult.desc} in <span className="font-mono">{hackerInjectResult.fileName}</span></p>
                   )}
                 </div>
               ) : (
                 <>
                   <div className="p-2 rounded border bg-red-900/10 border-red-500/20">
-                    <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold mb-1">
-                      💉 Vote on Corruption for {hackerVoteStatus.agreedTargetName}
+                    <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold mb-1 flex items-center gap-1">
+                      <Syringe size={10} /> Vote on Corruption for {hackerVoteStatus.agreedTargetName}
                     </p>
                     <p className="text-[9px] text-gray-500">
                       All hackers must agree on the same injection. Browse the target's code above, then vote below.
@@ -295,11 +296,11 @@ export default function CodeBrowser({
                         : 'bg-cyber-darker border-cyber-red/20'
                     }`}>
                       {hackerInjectVoteStatus.disagreement && (
-                        <p className="text-cyber-red font-bold mb-1">⚠️ You must ALL agree on the same injection! Votes reset.</p>
+                        <p className="text-cyber-red font-bold mb-1 flex items-center gap-1"><AlertTriangle size={12} /> You must ALL agree on the same injection! Votes reset.</p>
                       )}
                       {Object.values(hackerInjectVoteStatus.votes || {}).map((v, i) => (
-                        <p key={i} className="text-gray-400">
-                          🕷️ {v.hackerName} → <span className="text-red-300 font-mono text-[10px]">{v.fileName}: {v.desc}</span>
+                        <p key={i} className="text-gray-400 flex items-center gap-1">
+                          <Bug size={10} /> {v.hackerName} → <span className="text-red-300 font-mono text-[10px]">{v.fileName}: {v.desc}</span>
                         </p>
                       ))}
                       {!hackerInjectVoteStatus.disagreement && (
@@ -327,14 +328,14 @@ export default function CodeBrowser({
                       ) : (
                         injectionOptions.map((opt) => (
                           <div key={opt.fileIdx} className="space-y-0.5">
-                            <p className="text-[9px] text-gray-500 font-mono px-1">📄 {opt.fileName}:</p>
+                            <p className="text-[9px] text-gray-500 font-mono px-1 flex items-center gap-1"><File size={10} /> {opt.fileName}:</p>
                             {opt.patches.map((patch, i) => (
                               <button
                                 key={i}
                                 onClick={() => onHackerInjectVote?.(opt.fileIdx, patch.patchIdx)}
                                 className="w-full text-left text-xs px-3 py-1.5 rounded border border-red-500/20 bg-red-900/10 text-red-300 hover:bg-red-900/30 hover:border-red-500/40 transition-all flex items-center gap-2"
                               >
-                                <span className="text-red-500">⚡</span>
+                                <span className="text-red-500"><Zap size={12} /></span>
                                 <span>{patch.desc}</span>
                               </button>
                             ))}
@@ -352,18 +353,18 @@ export default function CodeBrowser({
           {myRole === ROLES.ADMIN && isSunrise && selectedPlayerId !== myId && (
             <div className="space-y-2">
               {(!adminScanResult || adminScanResult.targetId !== selectedPlayerId) && (
-                <div className="text-xs p-3 rounded border bg-blue-900/10 border-blue-500/20 text-blue-300">
-                  🔍 Scan this player from the panel above to reveal their code.
+                <div className="text-xs p-3 rounded border bg-blue-900/10 border-blue-500/20 text-blue-300 flex items-center gap-1">
+                  <Search size={12} /> Scan this player from the panel above to reveal their code.
                 </div>
               )}
               {adminScanResult && adminScanResult.targetId === selectedPlayerId && !adminScanResult.corrupted && (
-                <div className="text-xs p-3 rounded border bg-green-900/20 border-green-500/30 text-green-400 font-semibold">
-                  ✅ Code is clean — no corruption found.
+                <div className="text-xs p-3 rounded border bg-green-900/20 border-green-500/30 text-green-400 font-semibold flex items-center gap-1">
+                  <CheckCircle size={12} /> Code is clean — no corruption found.
                 </div>
               )}
               {adminScanResult && adminScanResult.targetId === selectedPlayerId && adminScanResult.corrupted && (
                 <div className="text-xs p-2 rounded border bg-red-900/10 border-red-500/20 text-red-400">
-                  ⚠️ Corrupted file: <span className="font-mono">{adminScanResult.fileName}</span> — use the repair options in the panel above.
+                  <AlertTriangle size={12} className="inline mr-1" /> Corrupted file: <span className="font-mono">{adminScanResult.fileName}</span> — use the repair options in the panel above.
                 </div>
               )}
             </div>
@@ -373,8 +374,8 @@ export default function CodeBrowser({
           {myRole === ROLES.SECURITY_LEAD && isSunrise && selectedPlayerId !== myId && (
             <div className="space-y-2">
               <div className="p-2 rounded border bg-yellow-900/10 border-yellow-500/20">
-                <p className="text-[10px] uppercase tracking-wider text-cyber-yellow font-bold">
-                  🔍 Reviewing {viewableCode[selectedPlayerId]?.playerName || 'player'}'s code
+                <p className="text-[10px] uppercase tracking-wider text-cyber-yellow font-bold flex items-center gap-1">
+                  <Search size={10} /> Reviewing {viewableCode[selectedPlayerId]?.playerName || 'player'}'s code
                 </p>
                 <p className="text-[9px] text-gray-500 mt-1">
                   Look for suspicious function names like <span className="font-mono text-red-400">exploit_buffer</span>,
@@ -422,11 +423,11 @@ export default function CodeBrowser({
                           : 'text-gray-500 hover:text-gray-300'
                       }`}
                     >
-                      📄 {file.name}
+                      <File size={10} /> {file.name}
                       {/* Highlight infected file */}
                       {myRole === ROLES.ADMIN && adminScanResult?.corrupted &&
                        adminScanResult?.fileIdx === idx && (
-                        <span className="text-red-400 ml-1">⚠️</span>
+                        <span className="text-red-400 ml-1"><AlertTriangle size={10} /></span>
                       )}
                     </button>
                   ))}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bug, Shield, Code2, Wrench, Search, Skull, HelpCircle } from 'lucide-react';
 
 /**
  * GameOverScreen – Shown when the game ends.
@@ -20,7 +21,7 @@ export default function GameOverScreen({ data, myId }) {
             ? 'bg-cyber-red/10 border border-cyber-red/30'
             : 'bg-cyber-green/10 border border-cyber-green/30'
         }`}>
-          <p className="text-5xl mb-3 animate-scale-in animate-float">{isHackerWin ? '🕷️' : '🛡️'}</p>
+          <p className="text-5xl mb-3 animate-scale-in animate-float flex justify-center">{isHackerWin ? <Bug size={48} /> : <Shield size={48} />}</p>
           <h1 className={`text-2xl font-bold animate-glow-pulse ${
             isHackerWin ? 'text-cyber-red neon-text-red' : 'text-cyber-green neon-text-green'
           }`}>
@@ -37,10 +38,10 @@ export default function GameOverScreen({ data, myId }) {
           <div className="space-y-1.5">
             {players.map((p, i) => {
               const roleIcons = {
-                Developer: '👨‍💻',
-                Hacker: '🕷️',
-                'Security Lead': '🔍',
-                Admin: '🛠️',
+                Developer: Code2,
+                Hacker: Bug,
+                'Security Lead': Search,
+                Admin: Wrench,
               };
               const isMe = p.id === myId;
               return (
@@ -52,7 +53,7 @@ export default function GameOverScreen({ data, myId }) {
                   style={{ animationDelay: `${i * 90 + 300}ms`, animationFillMode: 'both' }}
                 >
                   <span className="flex items-center gap-2">
-                    <span>{roleIcons[p.role] || '❓'}</span>
+                    {(() => { const Icon = roleIcons[p.role] || HelpCircle; return <Icon size={14} />; })()}
                     <span className={`${!p.alive ? 'line-through text-gray-500' : 'text-gray-300'}`}>
                       {p.name}
                     </span>
@@ -62,7 +63,7 @@ export default function GameOverScreen({ data, myId }) {
                     p.role === 'Hacker' ? 'text-cyber-red' : 'text-cyber-blue'
                   }`}>
                     {p.role}
-                    {!p.alive && ' ☠️'}
+                    {!p.alive && <Skull size={12} className="inline ml-1" />}
                   </span>
                 </div>
               );

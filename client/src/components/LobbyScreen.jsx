@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getAvatarForPlayer } from '../utils/avatars';
 import MenuBackground from './MenuBackground';
+import { AlertTriangle, Bot, Code2, Bug, Wrench, Search, CheckCircle, Rocket, Crown } from 'lucide-react';
 
 /**
  * LobbyScreen – Handles room creation, joining, and pre-game lobby.
@@ -68,7 +69,7 @@ export default function LobbyScreen({
                 >
                   <span className="flex items-center text-white gap-2">
                     <img src={getAvatarForPlayer(p.name)} alt={p.name} className="w-8 h-8 rounded-full bg-black/40" />
-                    {p.isHost && <span className="text-cyber-yellow" title="Host">👑</span>}
+                    {p.isHost && <span className="text-cyber-yellow" title="Host"><Crown size={14} /></span>}
                     {p.isBot && <span className="text-blue-400 text-xs bg-blue-900/30 border border-blue-700/30 rounded px-1">BOT</span>}
                     {p.name}
                   </span>
@@ -83,15 +84,15 @@ export default function LobbyScreen({
           {/* Min-player warning */}
           {gameState.players.length < (gameState.minPlayers || 6) && (
             <p className="text-center text-cyber-yellow text-xs mb-4">
-              ⚠️ Need at least {gameState.minPlayers || 6} players to start ({(gameState.minPlayers || 6) - gameState.players.length} more)
+              <AlertTriangle size={14} className="inline-block mr-1" /> Need at least {gameState.minPlayers || 6} players to start ({(gameState.minPlayers || 6) - gameState.players.length} more)
             </p>
           )}
 
           {/* Fill with bots — host only, only when under minimum */}
           {isHost && (
             <div className="mb-4 p-3 rounded-lg border border-blue-700/30 bg-blue-900/10 space-y-3">
-              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider">
-                🤖 Test Mode
+              <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
+                <Bot size={14} /> Test Mode
               </p>
               <div className="flex gap-2">
                 <button
@@ -114,11 +115,11 @@ export default function LobbyScreen({
                 <p className="text-blue-300/70 text-[11px] uppercase tracking-wider mb-2">Choose Your Role (optional)</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { role: 'Developer', icon: '👨‍💻', color: 'blue' },
-                    { role: 'Hacker',    icon: '🕷️',       color: 'red' },
-                    { role: 'Admin',     icon: '🛠️',       color: 'green' },
-                    { role: 'Security Lead', icon: '🔍', color: 'yellow' },
-                  ].map(({ role, icon, color }) => {
+                    { role: 'Developer', Icon: Code2, color: 'blue' },
+                    { role: 'Hacker',    Icon: Bug,   color: 'red' },
+                    { role: 'Admin',     Icon: Wrench, color: 'green' },
+                    { role: 'Security Lead', Icon: Search, color: 'yellow' },
+                  ].map(({ role, Icon, color }) => {
                     const isSelected = chosenRole === role;
                     const styles = {
                       blue:   { sel: 'border-blue-400 bg-blue-800/50 text-blue-200',   def: 'border-blue-700/40 bg-blue-900/20 text-blue-400 hover:border-blue-500/60' },
@@ -139,7 +140,7 @@ export default function LobbyScreen({
                           isSelected ? styles[color].sel : styles[color].def
                         }`}
                       >
-                        <span>{icon}</span>
+                        <Icon size={14} />
                         <span>{role}</span>
                         {isSelected && <span className="ml-auto text-[10px] opacity-70">✓ picked</span>}
                       </button>
@@ -147,7 +148,7 @@ export default function LobbyScreen({
                   })}
                 </div>
                 {chosenRole && (
-                  <p className="text-green-400/70 text-[10px] mt-1.5">✅ You'll be assigned <strong>{chosenRole}</strong> when the game starts.</p>
+                  <p className="text-green-400/70 text-[10px] mt-1.5 flex items-center gap-1"><CheckCircle size={12} /> You'll be assigned <strong>{chosenRole}</strong> when the game starts.</p>
                 )}
               </div>
             </div>
@@ -173,7 +174,7 @@ export default function LobbyScreen({
               disabled={gameState.players.length < (gameState.minPlayers || 6)}
               className="cyber-btn-green w-full text-center"
             >
-              🚀 Start Game
+              <Rocket size={16} className="inline-block mr-1" /> Start Game
             </button>
           )}
 

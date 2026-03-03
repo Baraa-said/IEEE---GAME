@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PHASES } from '../shared/constants';
 import { playTick } from '../utils/sounds';
+import { Sun, Vote, Shield, Moon, Sunrise, Flag } from 'lucide-react';
 
 /**
  * PhaseIndicator – Displays the current phase, sprint number, and countdown timer.
@@ -26,15 +27,15 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
   }, [phaseEndTime]);
 
   const phaseDisplay = {
-    [PHASES.DAY_DISCUSSION]: { label: '☀️ STANDUP MEETING', color: 'text-cyber-yellow', bg: 'bg-cyber-yellow/10', border: 'border-cyber-yellow/30' },
-    [PHASES.DAY_VOTING]: { label: '🗳️ VOTING', color: 'text-cyber-blue', bg: 'bg-cyber-blue/10', border: 'border-cyber-blue/30' },
-    [PHASES.DAY_DEFENSE]: { label: '🛡️ DEFENSE', color: 'text-cyber-purple', bg: 'bg-cyber-purple/10', border: 'border-cyber-purple/30' },
-    [PHASES.NIGHT]: { label: '🌙 NIGHT OPS', color: 'text-cyber-red', bg: 'bg-cyber-red/10', border: 'border-cyber-red/30' },
-    [PHASES.SUNRISE]: { label: '🌅 SUNRISE', color: 'text-orange-400', bg: 'bg-orange-900/10', border: 'border-orange-500/30' },
-    [PHASES.GAME_OVER]: { label: '🏁 GAME OVER', color: 'text-white', bg: 'bg-gray-800', border: 'border-gray-600' },
+    [PHASES.DAY_DISCUSSION]: { label: 'STANDUP MEETING', icon: Sun, color: 'text-cyber-yellow', bg: 'bg-cyber-yellow/10', border: 'border-cyber-yellow/30' },
+    [PHASES.DAY_VOTING]: { label: 'VOTING', icon: Vote, color: 'text-cyber-blue', bg: 'bg-cyber-blue/10', border: 'border-cyber-blue/30' },
+    [PHASES.DAY_DEFENSE]: { label: 'DEFENSE', icon: Shield, color: 'text-cyber-purple', bg: 'bg-cyber-purple/10', border: 'border-cyber-purple/30' },
+    [PHASES.NIGHT]: { label: 'NIGHT OPS', icon: Moon, color: 'text-cyber-red', bg: 'bg-cyber-red/10', border: 'border-cyber-red/30' },
+    [PHASES.SUNRISE]: { label: 'SUNRISE', icon: Sunrise, color: 'text-orange-400', bg: 'bg-orange-900/10', border: 'border-orange-500/30' },
+    [PHASES.GAME_OVER]: { label: 'GAME OVER', icon: Flag, color: 'text-white', bg: 'bg-gray-800', border: 'border-gray-600' },
   };
 
-  const config = phaseDisplay[phase] || { label: phase, color: 'text-gray-400', bg: 'bg-gray-800', border: 'border-gray-600' };
+  const config = phaseDisplay[phase] || { label: phase, icon: null, color: 'text-gray-400', bg: 'bg-gray-800', border: 'border-gray-600' };
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -48,7 +49,8 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
     <div className={`${config.bg} border ${config.border} rounded-lg p-3 mb-4`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className={`text-xs uppercase tracking-wider ${config.color} font-bold`}>
+          <p className={`text-xs uppercase tracking-wider ${config.color} font-bold flex items-center gap-1.5`}>
+            {config.icon && <config.icon size={14} />}
             {config.label}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getAvatarForPlayer } from '../utils/avatars';
+import { MessageCircle, Bug } from 'lucide-react';
 
 /**
  * ChatPanel – Public day chat + private hacker night chat.
@@ -72,7 +73,7 @@ export default function ChatPanel({
               : 'text-gray-500 hover:text-gray-300'
           }`}
         >
-          💬 Public Chat
+          <MessageCircle size={12} className="inline-block mr-0.5" /> Public Chat
         </button>
         {isHacker && (
           <button
@@ -83,7 +84,7 @@ export default function ChatPanel({
                 : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            🕷️ Hacker Channel
+            <Bug size={12} className="inline-block mr-0.5" /> Hacker Channel
           </button>
         )}
       </div>

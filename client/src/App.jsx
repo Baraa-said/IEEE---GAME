@@ -9,6 +9,7 @@ import ToastContainer from './components/Toast';
 import { playPhaseChange, playChatNotif, playElimination, playJoinRoom, playPlayerJoined, playGameStart, playRoleReveal, playVoteResult, playDefenseStart, playProtectionSaved, playHackerInject, playScanClean, playScanCorrupted, playRepair, playWin, playLose, playSunrise, playHackerChat, playSendMessage, playSkip } from './utils/sounds';
 import { applyThemeToDocument } from './utils/themes';
 import SkyBackground from './components/SkyBackground';
+import { RefreshCw, Skull, AlertTriangle } from 'lucide-react';
 
 /**
  * App – Root component. Manages global game state received from the server
@@ -446,7 +447,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cyber-bg">
         <div className="cyber-card text-center p-8">
-          <div className="text-4xl mb-4 animate-spin">🔄</div>
+          <div className="text-4xl mb-4 animate-spin flex justify-center"><RefreshCw size={40} /></div>
           <h2 className="text-cyber-green text-lg font-bold mb-2">Reconnecting...</h2>
           <p className="text-gray-400 text-sm">Attempting to rejoin your game session.</p>
           <p className="text-gray-500 text-xs mt-2">Room: {roomId} • Name: {playerName}</p>

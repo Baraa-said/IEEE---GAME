@@ -8,6 +8,7 @@ import NightPanel from './NightPanel';
 import CodeBrowser from './CodeBrowser';
 import { getAvatarForRole } from '../utils/avatars';
 import { getTheme } from '../utils/themes';
+import { Bug, Code2, AlertTriangle, CheckCircle, Search, Shield, Skull, Sun, Sunrise as SunriseIcon, File, Crosshair, XCircle, SkipForward } from 'lucide-react';
 
 /**
  * GameScreen – Main game view. Orchestrates all sub-panels based on the
@@ -115,6 +116,8 @@ export default function GameScreen({
             alivePlayers={alivePlayers}
             deadPlayers={deadPlayers}
             myId={myId}
+            myRole={myRole}
+            fellowHackers={fellowHackers}
             defenders={defenders}
             voteTally={voteTally}
           />
@@ -142,7 +145,7 @@ export default function GameScreen({
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {eliminationLog.map((e, i) => (
                   <p key={i} className="text-xs text-gray-400 animate-slide-left" style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}>
-                    {e.role === 'Hacker' ? '🕷️' : '👨‍💻'} {e.name} ({e.role}) – {e.reason}
+                    {e.role === 'Hacker' ? <Bug size={12} className="inline" /> : <Code2 size={12} className="inline" />} {e.name} ({e.role}) – {e.reason}
                   </p>
                 ))}
               </div>
@@ -165,7 +168,7 @@ export default function GameScreen({
           {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT, PHASES.SUNRISE].includes(phase) && (
             <div className="cyber-card py-2 flex items-center justify-between">
               <span className="text-xs text-gray-400">
-                ⏭️ Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
+                <SkipForward size={12} className="inline-block mr-1" /> Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
               </span>
               <button
                 onClick={onSkipPhase}
@@ -176,7 +179,7 @@ export default function GameScreen({
                     : 'bg-cyber-blue/20 border border-cyber-blue/40 text-cyber-blue hover:bg-cyber-blue/30'
                 }`}
               >
-                {hasSkipped ? '✓ Ready to Skip' : '⏭️ Skip Phase'}
+                {hasSkipped ? '✓ Ready to Skip' : <><SkipForward size={12} className="inline-block mr-1" /> Skip Phase</>}
               </button>
             </div>
           )}
@@ -197,8 +200,8 @@ export default function GameScreen({
 
           {isDefense && defenders.length > 0 && (
             <div className="cyber-card border-cyber-purple/30 animate-slide-up">
-              <h3 className="text-xs uppercase tracking-wider text-cyber-purple font-bold mb-2">
-                🛡️ Defense Phase
+              <h3 className="text-xs uppercase tracking-wider text-cyber-purple font-bold mb-2 flex items-center gap-1.5">
+                <Shield size={14} /> Defense Phase
               </h3>
               <p className="text-sm text-gray-300">
                 The following players must defend themselves:
@@ -207,8 +210,8 @@ export default function GameScreen({
                 {defenders.map(dId => {
                   const dp = alivePlayers.find(p => p.id === dId);
                   return dp ? (
-                    <p key={dId} className="text-sm text-cyber-yellow font-semibold">
-                      ⚠️ {dp.name}
+                    <p key={dId} className="text-sm text-cyber-yellow font-semibold flex items-center gap-1">
+                      <AlertTriangle size={12} /> {dp.name}
                     </p>
                   ) : null;
                 })}
@@ -240,8 +243,8 @@ export default function GameScreen({
 
                   {/* STEP 1: Scan a player for corruption */}
                   <div className="cyber-card border-blue-500/30 bg-blue-900/10">
-                    <h3 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2">
-                      🔍 Step 1 — Scan for Corruption
+                    <h3 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2 flex items-center gap-1.5">
+                      <Search size={14} /> Step 1 — Scan for Corruption
                     </h3>
                     <p className="text-xs text-gray-500 mb-3">Choose a player to scan their code for hacker injections:</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -263,9 +266,9 @@ export default function GameScreen({
                           >
                             <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.name)}`} alt={p.name} className={`w-12 h-12 rounded-full bg-black/40 border-2 ${isCorrupted ? 'border-red-500' : isClean ? 'border-green-400' : 'border-blue-600/30'}`} />
                             <span className="font-semibold text-sm">{p.name}</span>
-                            {isCorrupted && <span className="text-[10px] text-red-400 animate-pulse">⚠️ Corrupted!</span>}
-                            {isClean && <span className="text-[10px] text-green-400">✅ Clean</span>}
-                            {!isScanned && <span className="text-[10px] text-blue-400/60">🔍 Scan</span>}
+                            {isCorrupted && <span className="text-[10px] text-red-400 animate-pulse flex items-center gap-1"><AlertTriangle size={10} /> Corrupted!</span>}
+                            {isClean && <span className="text-[10px] text-green-400 flex items-center gap-1"><CheckCircle size={10} /> Clean</span>}
+                            {!isScanned && <span className="text-[10px] text-blue-400/60 flex items-center gap-1"><Search size={10} /> Scan</span>}
                           </button>
                         );
                       })}
@@ -275,7 +278,7 @@ export default function GameScreen({
                   {/* Clean scan result */}
                   {adminScanResult && !adminScanResult.corrupted && (
                     <div className="p-2 rounded border border-green-500/30 bg-green-900/10 text-green-400 text-xs text-center animate-fade-in">
-                      ✅ {adminScanResult.targetName}'s code is clean — no corruption found. Your task stops here.
+                      <CheckCircle size={12} className="inline mr-1" /> {adminScanResult.targetName}'s code is clean — no corruption found. Your task stops here.
                     </div>
                   )}
 
@@ -283,15 +286,15 @@ export default function GameScreen({
                   {adminScanResult?.corrupted && !adminBugGuessResult && (
                     <div className="cyber-card border-red-500/40 bg-red-900/10 animate-slide-up space-y-3">
                       <div>
-                        <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold">
-                          ⚠️ Step 2 — Find the Bug!
+                        <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold flex items-center gap-1.5">
+                          <AlertTriangle size={14} /> Step 2 — Find the Bug!
                         </h3>
                         <p className="text-[11px] text-gray-400 mt-1">
                           <span className="text-red-300 font-semibold">{adminScanResult.targetName}</span>'s code is corrupted!
                           Review their files below and choose which file contains the bug.
                         </p>
-                        <p className="text-[10px] text-yellow-400/90 mt-1 font-bold">
-                          ⚠️ You only get ONE guess! Correct → protect the player. Wrong → the player dies.
+                        <p className="text-[10px] text-yellow-400/90 mt-1 font-bold flex items-center gap-1">
+                          <AlertTriangle size={10} /> You only get ONE guess! Correct → protect the player. Wrong → the player dies.
                         </p>
                       </div>
 
@@ -310,10 +313,10 @@ export default function GameScreen({
                                   adminFileGuessIdx === fIdx ? 'bg-yellow-900/20' : ''
                                 }`}
                               >
-                                <span className="text-sm">📄</span>
+                                <span className="text-sm"><File size={14} /></span>
                                 <span className="text-[11px] font-mono text-gray-300 flex-1">{file.name}</span>
                                 {adminFileGuessIdx === fIdx
-                                  ? <span className="text-[10px] text-yellow-400 font-bold animate-pulse">🎯 Selected</span>
+                                  ? <span className="text-[10px] text-yellow-400 font-bold animate-pulse flex items-center gap-1"><Crosshair size={10} /> Selected</span>
                                   : <span className="text-[10px] text-gray-500">Click to select</span>
                                 }
                               </button>
@@ -341,7 +344,7 @@ export default function GameScreen({
                             : 'border-gray-600/30 bg-gray-800/30 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        🎯 Submit Guess — This File Has the Bug
+                        <Crosshair size={14} className="inline-block mr-1" /> Submit Guess — This File Has the Bug
                       </button>
                     </div>
                   )}
@@ -355,8 +358,8 @@ export default function GameScreen({
                     }`}>
                       {adminBugGuessResult.correct ? (
                         <>
-                          <h3 className="text-xs uppercase tracking-wider text-green-400 font-bold">
-                            ✅ Correct! Player Protected
+                          <h3 className="text-xs uppercase tracking-wider text-green-400 font-bold flex items-center gap-1.5">
+                            <CheckCircle size={14} /> Correct! Player Protected
                           </h3>
                           <p className="text-sm text-green-300">
                             You correctly identified <span className="font-mono font-bold">{adminBugGuessResult.actualFileName}</span> as the corrupted file.
@@ -365,8 +368,8 @@ export default function GameScreen({
                         </>
                       ) : (
                         <>
-                          <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold">
-                            ❌ Wrong File! Player Eliminated
+                          <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold flex items-center gap-1.5">
+                            <XCircle size={14} /> Wrong File! Player Eliminated
                           </h3>
                           <p className="text-sm text-red-300">
                             You chose <span className="font-mono font-bold">{adminBugGuessResult.guessedFileName}</span> but the bug was in{' '}
@@ -383,7 +386,7 @@ export default function GameScreen({
                     onClick={onFinishSunrise}
                     className="w-full py-3 rounded-lg border border-green-400/50 bg-green-900/30 text-green-300 font-bold text-sm hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02] transition-all animate-bounce-in"
                   >
-                    ✅ Finish Sunrise — I'm Done
+                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Sunrise — I'm Done
                   </button>
                 </div>
               )}
@@ -391,8 +394,8 @@ export default function GameScreen({
               {/* Security Lead sunrise panel */}
               {myRole === ROLES.SECURITY_LEAD && amAlive && (
                 <div className="cyber-card border-yellow-500/30 bg-yellow-900/10 space-y-3">
-                  <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2">
-                    🌅 Security Lead — Scan Suspects
+                  <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2 flex items-center gap-1.5">
+                    <SunriseIcon size={14} /> Security Lead — Scan Suspects
                   </h3>
                   <p className="text-xs text-gray-400 mb-3">
                     Select a player to scan their code for hacker injections:
@@ -407,7 +410,7 @@ export default function GameScreen({
                       >
                         <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.name)}`} alt={p.name} className="w-12 h-12 rounded-full bg-black/40 border border-yellow-500/30" />
                         <span className="font-semibold text-sm">{p.name}</span>
-                        <span className="text-[10px] text-yellow-400/70">🔍 Scan</span>
+                        <span className="text-[10px] text-yellow-400/70 flex items-center gap-1"><Search size={10} /> Scan</span>
                       </button>
                     ))}
                   </div>
@@ -419,9 +422,9 @@ export default function GameScreen({
                         : 'bg-green-900/20 border-green-500/30'
                     }`}>
                       {securityScanResult.isHacker ? (
-                        <p className="text-red-400 font-bold">⚠️ {securityScanResult.targetName} is a HACKER!</p>
+                        <p className="text-red-400 font-bold flex items-center gap-1"><AlertTriangle size={12} /> {securityScanResult.targetName} is a HACKER!</p>
                       ) : (
-                        <p className="text-green-400 font-semibold">✅ {securityScanResult.targetName} is NOT a Hacker.</p>
+                        <p className="text-green-400 font-semibold flex items-center gap-1"><CheckCircle size={12} /> {securityScanResult.targetName} is NOT a Hacker.</p>
                       )}
                     </div>
                   )}
@@ -429,7 +432,7 @@ export default function GameScreen({
                     onClick={onFinishSunrise}
                     className="w-full py-3 rounded-lg border border-yellow-400/50 bg-yellow-900/30 text-yellow-300 font-bold text-sm hover:bg-yellow-700/50 hover:border-yellow-300 hover:scale-[1.02] transition-all animate-bounce-in"
                   >
-                    ✅ Finish Sunrise — I'm Done
+                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Sunrise — I'm Done
                   </button>
                 </div>
               )}
@@ -437,8 +440,8 @@ export default function GameScreen({
               {/* Developer / Hacker sunrise panel */}
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
                 <div className="cyber-card border-gray-600/30">
-                  <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
-                    🌅 Sunrise
+                  <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2 flex items-center gap-1.5">
+                    <SunriseIcon size={14} /> Sunrise
                   </h3>
                   <p className="text-sm text-gray-500">
                     The Admin and Security Lead are reviewing code... Wait for the day phase.
@@ -448,8 +451,8 @@ export default function GameScreen({
 
               {!amAlive && (
                 <div className="cyber-card border-gray-600/30">
-                  <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold mb-2">
-                    ☠️ Eliminated
+                  <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold mb-2 flex items-center gap-1.5">
+                    <Skull size={14} /> Eliminated
                   </h3>
                   <p className="text-sm text-gray-500">
                     You have been terminated. Observe the sunrise in silence.
@@ -461,8 +464,8 @@ export default function GameScreen({
 
           {phase === PHASES.DAY_DISCUSSION && (
             <div className="cyber-card flex-1">
-              <h3 className="text-xs uppercase tracking-wider text-cyber-yellow font-bold mb-2">
-                ☀️ Discussion Phase
+              <h3 className="text-xs uppercase tracking-wider text-cyber-yellow font-bold mb-2 flex items-center gap-1.5">
+                <Sun size={14} /> Discussion Phase
               </h3>
               <p className="text-sm text-gray-400">
                 Discuss with your team who might be a Hacker. Browse player code folders below to look for clues!
