@@ -108,3 +108,13 @@ body::after {
     border-color: var(--theme-primary, #00ff88);
   }
 }
+
+/* IEEE watermark scrolling animation — moves to top-left */
+@keyframes ieee-scroll {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-400px, -400px);
+  }
+}

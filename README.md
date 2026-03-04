@@ -1,188 +1,300 @@
-# ⚔️ Code Wars – Hackers vs Developers
+# IEEE Code Wars — Hackers vs Developers
 
-A multiplayer web game inspired by Mafia/Werewolf, redesigned around a **software development / cybersecurity** theme.
+A real-time multiplayer social deduction game inspired by Mafia/Werewolf, set in a **cybersecurity / software development** universe. Players take on secret roles — developers trying to ship clean code, or hackers trying to sabotage the project from the inside.
 
-Built with **React + Tailwind CSS** (frontend) and **Node.js + Express + Socket.io** (backend).
+Built with **React 18 + Tailwind CSS + Vite** (client) and **Node.js + Express + Socket.io** (server).
 
 ---
 
-## 🎮 Roles
+## Table of Contents
 
-| Role | Icon | Ability |
-|------|------|---------|
-| **Developer** | 👨‍💻 | No special night ability. Vote wisely! |
-| **Hacker** | 🕷️ | Conspire at night to inject a critical bug. |
-| **Security Lead** | 🔍 | Investigate one player each night. |
-| **Admin** | 🛠️ | Protect (debug) one player each night. |
+- [Game Overview](#game-overview)
+- [Roles](#roles)
+- [Game Phases](#game-phases)
+- [Code System](#code-system)
+- [Win Conditions](#win-conditions)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Admin Dashboard](#admin-dashboard)
+- [Bot Support](#bot-support)
 
-## 🏆 Win Conditions
+---
 
-- **Developers** win if all Hackers are eliminated.
-- **Hackers** win if their numbers equal or exceed non-Hackers.
-- *(Advanced Mode)* Hackers also win if System Stability reaches 0.
+## Game Overview
 
-## 🔄 Game Flow
+IEEE Code Wars is a browser-based party game for **6+ players**. Each player is secretly assigned a role at the start. The **Developers** (town) must identify and vote out the **Hackers** (mafia) before they sabotage enough code to crash the project. The game alternates between Day phases (discussion & voting) and Night phases (secret actions).
 
-Each round (Sprint) consists of:
+Every player has a personal folder of C source code files. Hackers inject bugs into other players' code at night, while the Security Lead and Admin use their abilities to investigate and protect the team.
 
-1. **☀️ Day – Standup Meeting**: Open discussion (60s).
-2. **🗳️ Voting**: Vote to suspend a player. Two consecutive highest votes → elimination.
-3. **🛡️ Defense** *(if tied)*: Accused players defend.
-4. **🌙 Night**: Role actions execute (Hacker attack, investigation, protection).
+---
 
-## 📦 Project Structure
+## Roles
+
+| Role | Description |
+|---|---|
+| **Developer** | The core team. No special night ability — survive, discuss, and vote wisely to find the hackers. |
+| **Hacker** | The saboteurs. Hackers know each other and coordinate at night to inject bugs into a target's code. They have a private chat channel. |
+| **Security Lead** | Can investigate one player per night by scanning their code files for suspicious function names. Identifies whether a player is a hacker. |
+| **Admin** | Can scan a player's files for corruption. If corrupted files are found, the Admin must guess which specific file contains the bug — guess correctly and the player is protected; guess wrong and the player is eliminated. |
+
+### Role Distribution
+
+| Player Count | Hackers |
+|---|---|
+| 6–7 | 2 |
+| 8–10 | 3 |
+| 11+ | ⌊players × ⅓⌋ |
+
+One **Security Lead** and one **Admin** are always assigned. Remaining non-hacker slots are filled with Developers.
+
+---
+
+## Game Phases
+
+The game cycles through the following phases each sprint (round):
+
+### 1. Night Phase (5 min)
+- **Hackers** privately discuss and vote on a target to inject a bug into.
+- **Security Lead** scans one player's code for hacker signatures.
+- **Admin** scans one player's files for corruption, then attempts to guess the bugged file.
+- **Developers** wait.
+
+### 2. Sunrise Phase (3 min)
+- Night results are revealed — who was targeted, whether protections succeeded.
+- Admin and Security Lead can perform additional sunrise actions.
+
+### 3. Day Discussion (60 sec)
+- All living players discuss openly via chat.
+- Share suspicions, evidence from investigations, and defense arguments.
+
+### 4. Day Voting (45 sec)
+- Players vote to suspend (eliminate) a suspect.
+- The player with the most votes enters the defense phase.
+
+### 5. Day Defense (20 sec)
+- The accused player makes their case.
+- After defense, a final decision is made on elimination.
+
+### Skip Mechanic
+- Any player can vote to skip a phase. If enough players agree, the phase ends early.
+
+---
+
+## Code System
+
+Every player receives a personal folder of **2–3 randomly generated C source files** (e.g., `math_utils.c`, `string_ops.c`, `linked_list.c`).
+
+- **Clean files** contain normal, student-level C functions.
+- **Hacker files** contain suspicious function names (e.g., `exploit_buffer`, `rootkit_load`) that the Security Lead can detect during scans.
+- **Corrupted files** are created when hackers inject bugs at night — subtle malicious lines inserted into a target's code.
+
+### Night Actions on Code
+
+| Role | Action |
+|---|---|
+| Hacker | Pick a target player → inject a bug into one of their files |
+| Security Lead | Scan a player's file list → detect hacker-signature function names |
+| Admin | Check a player for corruption → if found, guess which file has the bug |
+
+---
+
+## Win Conditions
+
+| Team | Condition |
+|---|---|
+| **Developers Win** | All hackers have been eliminated through voting. |
+| **Hackers Win** | Hackers equal or outnumber the remaining developers. |
+
+---
+
+## Tech Stack
+
+### Client
+- **React 18** — UI framework
+- **Vite** — Build tool & dev server
+- **Tailwind CSS** — Utility-first styling with a custom cyberpunk theme
+- **Socket.io Client** — Real-time WebSocket communication
+- **Lucide React** — Icon library
+
+### Server
+- **Node.js + Express** — HTTP server & API
+- **Socket.io** — Real-time bidirectional event-based communication
+- **UUID** — Room code and identifier generation
+- **Cloudflare Tunnel** — Auto-starts a free public tunnel on launch
+
+---
+
+## Project Structure
 
 ```
 IEEE---GAME/
-├── server/                 # Node.js backend
-│   ├── package.json
-│   └── src/
-│       ├── index.js        # Express + Socket.io entry point
-│       ├── game/
-│       │   ├── Player.js       # Player class
-│       │   ├── Room.js         # Room + GameState + Phase controller
-│       │   ├── RoomManager.js  # Room store (singleton)
-│       │   ├── RoleEngine.js   # Role assignment + night resolution
-│       │   └── VoteTracker.js  # Voting with streak logic
-│       ├── sockets/
-│       │   └── handlers.js     # All socket event handlers
-│       └── shared/
-│           ├── events.js       # Socket event name constants
-│           ├── phases.js       # Phase constants
-│           └── roles.js        # Role constants
-│
-├── client/                 # React + Vite frontend
+├── package.json                 # Root scripts (install:all, dev:server, etc.)
+├── README.md
+├── client/                      # React frontend
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   ├── index.html
+│   ├── public/
 │   └── src/
-│       ├── main.jsx
-│       ├── App.jsx             # Root component + state management
-│       ├── socket.js           # Socket.io client singleton
+│       ├── App.jsx              # Main app — state management & socket events
+│       ├── main.jsx             # React entry point
+│       ├── index.css            # Tailwind imports & custom styles
+│       ├── socket.js            # Socket.io client instance
+│       ├── components/
+│       │   ├── LobbyScreen.jsx      # Room creation, joining, pre-game lobby
+│       │   ├── GameScreen.jsx       # Main game view — orchestrates all panels
+│       │   ├── PlayerList.jsx       # Left sidebar — alive/dead players with roles
+│       │   ├── PhaseIndicator.jsx   # Phase label + countdown timer
+│       │   ├── ChatPanel.jsx        # Public chat + hacker private channel
+│       │   ├── VotingPanel.jsx      # Day voting interface
+│       │   ├── NightPanel.jsx       # Night action UI per role
+│       │   ├── CodeBrowser.jsx      # Interactive C code file viewer
+│       │   ├── GameOverScreen.jsx   # Win/loss screen with role reveals
+│       │   ├── RoleRevealModal.jsx  # Role assignment animation
+│       │   ├── MenuBackground.jsx   # Animated lobby background
+│       │   ├── SkyBackground.jsx    # Day/night sky transitions
+│       │   └── Toast.jsx            # Notification toasts
 │       ├── shared/
-│       │   └── constants.js    # Shared event/phase/role constants
-│       └── components/
-│           ├── LobbyScreen.jsx     # Room create/join + waiting room
-│           ├── GameScreen.jsx      # Main game layout
-│           ├── GameOverScreen.jsx  # Final results screen
-│           ├── RoleRevealModal.jsx # Role assignment modal
-│           ├── PhaseIndicator.jsx  # Current phase header
-│           ├── PlayerList.jsx      # Alive/dead player list
-│           ├── ChatPanel.jsx       # Public + hacker private chat
-│           ├── VotingPanel.jsx     # Day voting UI
-│           └── NightPanel.jsx      # Night action selection
-│
-└── README.md
+│       │   └── constants.js     # Events, phases, roles (mirrors server)
+│       └── utils/
+│           ├── avatars.js       # Avatar generation per player/role
+│           ├── sounds.js        # Sound effects
+│           └── themes.js        # Role-based visual themes (colors, icons)
+└── server/                      # Node.js backend
+    ├── package.json
+    └── src/
+        ├── index.js             # Express + Socket.io entry point
+        ├── admin/
+        │   └── dashboard.js     # Admin dashboard (HTML + JSON API)
+        ├── game/
+        │   ├── Room.js          # Core game logic — phases, actions, win checks
+        │   ├── RoomManager.js   # Room registry — create, join, find
+        │   ├── Player.js        # Player model (id, name, role, alive)
+        │   ├── RoleEngine.js    # Role assignment algorithm
+        │   ├── CodeEngine.js    # C code generation & corruption system
+        │   ├── VoteTracker.js   # Vote tallying & resolution
+        │   └── BotManager.js    # AI bot behavior for testing
+        ├── shared/
+        │   ├── events.js        # Socket event name constants
+        │   ├── gameConfig.js    # All tunable game parameters
+        │   ├── phases.js        # Phase name constants
+        │   └── roles.js         # Role name constants
+        └── sockets/
+            └── handlers.js      # Socket.io event handlers
 ```
 
-## 🚀 How to Run Locally
+---
+
+## Getting Started
 
 ### Prerequisites
-- **Node.js** 18+ and **npm**
 
-### 1. Install & Start Backend
+- **Node.js** 18+
+- **npm** 9+
+- **cloudflared** (optional — for public tunnel access)
+
+### Install Dependencies
+
+```bash
+# From the project root:
+npm run install:all
+
+# Or manually:
+cd server && npm install
+cd ../client && npm install
+```
+
+### Development Mode
+
+Run the client dev server (hot reload) and the backend separately:
+
+```bash
+# Terminal 1 — Server
+cd server
+npm run dev          # uses nodemon for auto-restart
+
+# Terminal 2 — Client
+cd client
+npm run dev          # Vite dev server on http://localhost:5173
+```
+
+### Production Build & Run
+
+```bash
+# Build the client
+cd client
+npm run build        # outputs to client/dist/
+
+# Start the server (serves built client + API)
+cd ../server
+npm start            # http://localhost:4000
+```
+
+The server automatically:
+1. Serves the React build from `client/dist/`
+2. Attempts to start a **Cloudflare tunnel** for public access
+3. Prints the public URL to the console
+
+### Quick Start (Build + Run)
 
 ```bash
 cd server
-npm install
-npm run dev     # starts on http://localhost:4000
+npm run build-and-run
 ```
 
-### 2. Install & Start Frontend
+---
 
-```bash
-cd client
-npm install
-npm run dev     # starts on http://localhost:3000
-```
+## Configuration
 
-### 3. Play!
+All game parameters are centralized in `server/src/shared/gameConfig.js`:
 
-1. Open **http://localhost:3000** in your browser.
-2. Enter a name and click **Create New Room**.
-3. Share the room code with other players (open more browser tabs to test).
-4. When 6+ players have joined, the host clicks **Start Game**.
-
-> **Tip**: For local testing, open 6 browser tabs and join the same room with different names.
+| Parameter | Default | Description |
+|---|---|---|
+| `TIMERS.DISCUSSION` | 60s | Day discussion duration |
+| `TIMERS.VOTING` | 45s | Voting phase duration |
+| `TIMERS.DEFENSE` | 20s | Accused player's defense time |
+| `TIMERS.NIGHT` | 5 min | Night phase duration |
+| `TIMERS.SUNRISE` | 3 min | Sunrise phase duration |
+| `DELAYS.ROLE_REVEAL` | 5s | Pause after role reveal |
+| `DELAYS.NIGHT_TO_DAY` | 3s | Pause between night and day |
+| `MIN_PLAYERS` | 6 | Minimum players to start |
+| `INITIAL_STABILITY` | 3 | System stability (advanced mode) |
+| `MAX_INVESTIGATIONS_PER_NIGHT` | 1 | Security Lead scans per night |
+| `ADMIN_CHECKS_PER_NIGHT` | 1 | Admin corruption checks per night |
+| `RECONNECT_WINDOW_MS` | 15 min | Time window for player reconnection |
+| `CODE_FILES.MIN_CLEAN` | 2 | Min clean code files per player |
+| `CODE_FILES.MAX_CLEAN` | 3 | Max clean code files per player |
 
 ---
 
-## 🔌 Socket Event Design
+## Admin Dashboard
 
-### Lobby Events
-| Event | Direction | Payload |
-|-------|-----------|---------|
-| `create_room` | Client → Server | `{ playerName }` |
-| `join_room` | Client → Server | `{ roomId, playerName }` |
-| `room_created` | Server → Client | `{ roomId }` |
-| `room_joined` | Server → Client | `{ roomId }` |
-| `room_update` | Server → Room | Full public state |
-| `start_game` | Client → Server | `{ advancedMode }` |
+Access the admin panel at `/admin` while the server is running. It provides:
 
-### Game Events
-| Event | Direction | Payload |
-|-------|-----------|---------|
-| `role_assigned` | Server → Client | `{ role, description }` |
-| `hacker_reveal` | Server → Hackers | `{ hackers: [{id, name}] }` |
-| `phase_change` | Server → Room | `{ phase, message, duration }` |
-| `cast_vote` | Client → Server | `{ targetId }` |
-| `vote_update` | Server → Room | `{ tally, votesCast, totalVoters }` |
-| `vote_result` | Server → Room | `{ tally, eliminatedId, defenders }` |
-| `night_action` | Client → Server | `{ targetId }` |
-| `night_result` | Server → Room | `{ eliminated, protectionSaved, message }` |
-| `investigation_result` | Server → Security Lead | `{ targetName, isHacker }` |
-| `chat_message` | Bidirectional | `{ message }` / `{ senderName, message }` |
-| `hacker_chat` | Bidirectional | Same as chat, Hackers only |
-| `game_over` | Server → Room | `{ winner, reason, players }` |
+- **Room overview** — active rooms, player counts, current phases
+- **JSON API** — `GET /api/admin/rooms` for programmatic access
+- **Phase skip** — `POST /api/admin/skip/:roomCode` to force-skip the current phase
+- **Health check** — `GET /api/health`
 
 ---
 
-## 🗳️ Voting Streak Logic
+## Bot Support
 
-The two-consecutive-votes elimination mechanic works as follows:
+For testing, you can fill empty player slots with AI bots from the lobby. Bots:
 
-1. Every alive player votes for someone.
-2. After tallying, the player(s) with the highest votes get their `voteStreak` incremented.
-3. All other players' streaks reset to 0.
-4. If any player reaches `voteStreak >= 2` → **eliminated** (role revealed).
-5. If no elimination, the highest-voted players must **defend** themselves, then a new vote round begins.
+- Have human-like action delays
+- Perform role-appropriate night actions
+- Vote during day phases
+- Chat contextually
 
----
-
-## 🔮 Future Scaling Suggestions
-
-- **Database**: Add MongoDB/PostgreSQL for persistent game history, player stats, leaderboards.
-- **Authentication**: Add JWT-based auth or OAuth (Google/GitHub login).
-- **Deployment**: Dockerize both services. Deploy backend to Railway/Render, frontend to Vercel/Netlify.
-- **Redis**: Use Redis pub/sub for horizontal Socket.io scaling across multiple server instances.
-- **Spectator Mode**: Allow eliminated players or observers to watch without interacting.
-- **Custom Roles**: Add more roles (e.g., Intern who swaps roles, Pentester who can kill once).
-- **Voice Chat**: Integrate WebRTC for in-game voice during discussion phases.
-- **Mobile**: Port to React Native or build a responsive PWA.
-- **Matchmaking**: Add a queue system for random matchmaking without room codes.
-- **Anti-cheat**: Move all game logic server-side (already done) and add rate limiting.
+Use the **"Fill with Bots"** button in the lobby to add bots up to the minimum player count.
 
 ---
 
-## 📝 Tech Stack
+## License
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, Vite 5, Tailwind CSS 3 |
-| Backend | Node.js, Express 4, Socket.io 4 |
-| State | In-memory (classes) |
-| Fonts | Fira Code (monospace) |
-| Theme | Dark cyberpunk with neon accents |
-
----
-
-**Built for IEEE Game Development Workshop** 🎓
-to run the code :
-cloudflared tunnel --url http://localhost:4000 2>/tmp/cf-tunnel.log & sleep 8 && grep -oE 'https://[a-z0-9\-]+\.trycloudflare\.com' /tmp/cf-tunnel.log | head -1
-to kill anythin 
-lsof -ti:4000 | xargs kill -9 2>/dev/null; sleep 1; cd /Users/mac/Documents/IEEE---GAME/server && node src/index.js &
-
-to verify the srver 
-curl -s http://localhost:4000/api/health
+This project was built for the **IEEE** community as an educational and entertainment tool.

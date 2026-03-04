@@ -103,15 +103,49 @@ export default function SkyBackground({ phase }) {
     return result;
   }, [skyState.showStars]);
 
+  // SVG tile for IEEE watermark — uses a <pattern> with rotation so the text
+  // seamlessly tiles across the entire area without any cut-off words.
+  const ieeeSvg = useMemo(() => {
+    const raw = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">',
+      '<rect width="400" height="400" fill="#d6e4f0"/>',
+      '<defs>',
+      '<pattern id="p" width="160" height="70" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">',
+      '<text x="5" y="22" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="24" fill="#c2d3e6" letter-spacing="2">IEEE</text>',
+      '<text x="85" y="57" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="24" fill="#c2d3e6" letter-spacing="2">IEEE</text>',
+      '</pattern>',
+      '</defs>',
+      '<rect width="400" height="400" fill="url(#p)"/>',
+      '</svg>',
+    ].join('');
+    return `data:image/svg+xml,${encodeURIComponent(raw)}`;
+  }, []);
+
   return (
     <div
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 0 }}
     >
+      {/* Light blue IEEE watermark background — animated scrolling to top-left */}
+      <div
+        className="absolute"
+        style={{
+          top: '-400px',
+          left: '-400px',
+          right: '-400px',
+          bottom: '-400px',
+          backgroundImage: `url("${ieeeSvg}")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '400px 400px',
+          animation: 'ieee-scroll 12s linear infinite',
+          zIndex: 1,
+        }}
+      />
+
       {/* Sky gradient overlay */}
       <div
         className={`absolute inset-0 bg-gradient-to-b ${skyState.skyGradient} transition-all duration-[3000ms] ease-in-out`}
-        style={{ opacity: skyState.opacity }}
+        style={{ opacity: skyState.opacity, zIndex: 2 }}
       />
 
       {/* Stars */}
