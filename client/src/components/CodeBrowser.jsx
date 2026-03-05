@@ -10,7 +10,7 @@ import { Folder, Bug, CheckCircle, Syringe, AlertTriangle, Search, File, Zap } f
  * NIGHT:
  *   - Hackers: After agreeing on a target, vote as a team on which corruption to inject.
  *   - Admin: Browse up to 2 players' code to visually find obvious bugs (runtime errors), then repair.
- *   - Security Lead: Browse up to 2 players' code to manually look for hacker function names.
+ *   - QA: Browse up to 2 players' code to manually look for hacker function names.
  */
 export default function CodeBrowser({
   codeFiles,           // { [myId]: { playerName, files: [{name, code}] } }
@@ -30,7 +30,7 @@ export default function CodeBrowser({
   adminRepairResult,
   onAdminScanCorruption,
   adminScanResult,
-  // Security Lead (browse only)
+  // QA (browse only)
   securityScanResult,
   // Browse other player's code
   onGetPlayerCode,
@@ -56,11 +56,11 @@ export default function CodeBrowser({
     setSelectedFileIdx(0);
   }, [selectedPlayerId]);
 
-  // When security lead selects a different player at sunrise, request their code
+  // When QA selects a different player at sunrise, request their code
   // When hacker selects during night (via agreed target), code comes from vote status
   useEffect(() => {
     if (selectedPlayerId && selectedPlayerId !== myId) {
-      // Security Lead browses during sunrise
+      // QA browses during sunrise
       if (isSunrise && myRole === ROLES.SECURITY_LEAD) {
         onGetPlayerCode?.(selectedPlayerId);
       }
@@ -73,7 +73,11 @@ export default function CodeBrowser({
 
   if (!codeFiles || Object.keys(codeFiles).length === 0) return null;
 
-  // Merge playerCodeData (from security lead browse)
+  // For hackers: don't render the code browser at all during night until
+  // the hacker team has agreed on a target. This hides the whole card.
+  if (myRole === ROLES.HACKER && isNight && !hackerVoteStatus?.agreed) return null;
+
+  // Merge playerCodeData (from QA browse)
   const viewableCode = { ...codeFiles };
   if (playerCodeData && playerCodeData.targetId && playerCodeData.files) {
     viewableCode[playerCodeData.targetId] = {
@@ -196,7 +200,7 @@ export default function CodeBrowser({
       return self;
     }
 
-    // SUNRISE Security Lead: can browse alive players
+    // SUNRISE QA: can browse alive players
     if (isSunrise && myRole === ROLES.SECURITY_LEAD) {
       return alivePlayers || [];
     }
@@ -370,7 +374,7 @@ export default function CodeBrowser({
             </div>
           )}
 
-          {/* ═══ SECURITY LEAD: Manual Browse Panel ═══ */}
+          {/* ═══ QA: Manual Browse Panel ═══ */}
           {myRole === ROLES.SECURITY_LEAD && isSunrise && selectedPlayerId !== myId && (
             <div className="space-y-2">
               <div className="p-2 rounded border bg-yellow-900/10 border-yellow-500/20">
@@ -390,7 +394,7 @@ export default function CodeBrowser({
             </div>
           )}
 
-          {/* ═══ SECURITY LEAD: Instruction when viewing own code ═══ */}
+          {/* ═══ QA: Instruction when viewing own code ═══ */}
           {myRole === ROLES.SECURITY_LEAD && isSunrise && selectedPlayerId === myId && (
             <div className="text-xs p-2 rounded border bg-yellow-900/10 border-yellow-500/20 text-yellow-400">
               👆 Select up to {viewsMax} players above to browse their code and look for hacker signatures.
@@ -409,40 +413,44 @@ export default function CodeBrowser({
           {(myRole === ROLES.ADMIN && isSunrise && selectedPlayerId !== myId &&
             adminScanResult && adminScanResult.targetId === selectedPlayerId && !adminScanResult.corrupted)
             ? null
-            : selectedPlayer ? (
-              <>
-                {/* File tabs */}
-                <div className="flex gap-1 bg-cyber-darker rounded p-1 overflow-x-auto">
-                  {selectedPlayer.files.map((file, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedFileIdx(idx)}
-                      className={`text-[10px] font-mono px-2 py-1 rounded whitespace-nowrap transition-all flex items-center gap-1 ${
-                        selectedFileIdx === idx
-                          ? 'bg-gray-700 text-white'
-                          : 'text-gray-500 hover:text-gray-300'
-                      }`}
-                    >
-                      <File size={10} /> {file.name}
-                      {/* Highlight infected file */}
-                      {myRole === ROLES.ADMIN && adminScanResult?.corrupted &&
-                       adminScanResult?.fileIdx === idx && (
-                        <span className="text-red-400 ml-1"><AlertTriangle size={10} /></span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Code display */}
-                <div className="flex-1 overflow-auto bg-[#0d1117] rounded border border-gray-800 min-h-0">
-                  <div className="p-0 font-mono text-xs leading-5 whitespace-pre overflow-x-auto">
-                    {selectedFile && renderCode(selectedFile.code)}
+            : (myRole === ROLES.HACKER && isNight && !hackerVoteStatus?.agreed)
+              ? (
+                <div className="p-3 text-xs text-gray-400">Waiting for hackers to agree on a target to view code.</div>
+              )
+              : selectedPlayer ? (
+                <>
+                  {/* File tabs */}
+                  <div className="flex gap-1 bg-cyber-darker rounded p-1 overflow-x-auto">
+                    {selectedPlayer.files.map((file, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedFileIdx(idx)}
+                        className={`text-[10px] font-mono px-2 py-1 rounded whitespace-nowrap transition-all flex items-center gap-1 ${
+                          selectedFileIdx === idx
+                            ? 'bg-gray-700 text-white'
+                            : 'text-gray-500 hover:text-gray-300'
+                        }`}
+                      >
+                        <File size={10} /> {file.name}
+                        {/* Highlight infected file */}
+                        {myRole === ROLES.ADMIN && adminScanResult?.corrupted &&
+                         adminScanResult?.fileIdx === idx && (
+                          <span className="text-red-400 ml-1"><AlertTriangle size={10} /></span>
+                        )}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-gray-500 text-center py-4">No code to display.</p>
-            )
+
+                  {/* Code display */}
+                  <div className="flex-1 overflow-auto bg-[#0d1117] rounded border border-gray-800 min-h-0">
+                    <div className="p-0 font-mono text-xs leading-5 whitespace-pre overflow-x-auto">
+                      {selectedFile && renderCode(selectedFile.code)}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-4">No code to display.</p>
+              )
           }
         </div>
       )}

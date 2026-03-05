@@ -4,8 +4,8 @@ import { getAvatarForPlayer } from '../utils/avatars';
 import { Search, Bug, Wrench, Moon, Skull, CheckCircle, AlertTriangle, Crosshair } from 'lucide-react';
 
 /**
- * NightPanel – Night action UI for Hackers, Security Lead, and Admin.
- * - Security Lead can investigate 2 players
+ * NightPanel – Night action UI for Hackers, QA, and Admin.
+ * - QA can investigate 2 players
  * - Hackers must agree unanimously (shows vote status)
  * - Developers see a "waiting" message
  */
@@ -96,7 +96,7 @@ export default function NightPanel({
     );
   }
 
-  // Security Lead — waits during night, acts at sunrise
+  // QA — waits during night, acts at sunrise
   if (myRole === ROLES.SECURITY_LEAD) {
     return (
       <div className="cyber-card text-center animate-slide-up">
@@ -223,7 +223,7 @@ export default function NightPanel({
           </button>
         </>
       ) : (
-        /* ── Other roles (Security Lead during night — shouldn't render, but fallback) ── */
+        /* ── Other roles (QA during night — shouldn't render, but fallback) ── */
         <>
           <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
             {targets.map((p, idx) => (

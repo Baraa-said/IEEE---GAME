@@ -103,7 +103,7 @@ function registerHandlers(io, socket) {
     if (!room || room.phase !== PHASES.LOBBY) return;
     const player = room.getPlayer(socket.id);
     if (!player) return;
-    const valid = ['Developer', 'Hacker', 'Security Lead', 'Admin'];
+    const valid = ['Developer', 'Hacker', 'QA', 'Admin'];
     if (!valid.includes(role)) return;
     player.preferredRole = role;
     // Confirm back to client only
@@ -244,7 +244,7 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
-   *  FINISH SUNRISE (Admin / Security Lead press "Done")
+   *  FINISH SUNRISE (Admin / QA press "Done")
    * ────────────────────────────────────────── */
   socket.on(EVENTS.FINISH_SUNRISE, () => {
     const room = roomManager.getRoomBySocket(socket.id);
@@ -355,9 +355,9 @@ function registerHandlers(io, socket) {
   /* ──────────────────────────────────────────
    *  GET PLAYER CODE (browse a player's code files)
    *  - Day: players can only see their OWN code
-   *  - Night: hackers, admin, and security lead can see others' code
+   *  - Night: hackers, admin, and QA can see others' code
    *    - Admin: limited to ADMIN_CHECKS_PER_NIGHT different players
-   *    - Security Lead: limited to SECURITY_VIEWS_PER_NIGHT different players
+   *    - QA: limited to SECURITY_VIEWS_PER_NIGHT different players
    * ────────────────────────────────────────── */
   socket.on(EVENTS.GET_PLAYER_CODE, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
@@ -383,13 +383,13 @@ function registerHandlers(io, socket) {
       socket.emit(EVENTS.ERROR, { message: 'Only hackers can browse code during the night.' });
       return;
     }
-    // During SUNRISE: only admin and security lead can view other players' code
+    // During SUNRISE: only admin and QA can view other players' code
     if (isSunrise && targetId !== socket.id && !isAdmin && !isSecurityLead) {
-      socket.emit(EVENTS.ERROR, { message: 'Only Admin and Security Lead can browse code at sunrise.' });
+      socket.emit(EVENTS.ERROR, { message: 'Only Admin and QA can browse code at sunrise.' });
       return;
     }
 
-    // Check view limits for admin and security lead (during sunrise)
+    // Check view limits for admin and QA (during sunrise)
     if (isSunrise && targetId !== socket.id && (isAdmin || isSecurityLead)) {
       const allowed = room.trackCodeView(socket.id, targetId);
       if (!allowed) {
@@ -535,7 +535,7 @@ function registerHandlers(io, socket) {
   });
 
   /* ──────────────────────────────────────────
-   *  SECURITY SCAN (Security Lead scans a player's code for sus function names)
+   *  SECURITY SCAN (QA scans a player's code for sus function names)
    * ────────────────────────────────────────── */
   socket.on(EVENTS.SECURITY_SCAN, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
@@ -585,7 +585,7 @@ function registerHandlers(io, socket) {
       socket.emit(EVENTS.HACKER_REVEAL, { hackers: fellowHackers });
     }
 
-    // Send last investigation result if Security Lead
+    // Send last investigation result if QA
     if (player.isSecurityLead() && player.lastInvestigation) {
       socket.emit(EVENTS.INVESTIGATION_RESULT, { results: player.lastInvestigation });
     }
@@ -626,9 +626,9 @@ function getRoleDescription(role) {
     case ROLES.DEVELOPER:
       return 'You are a Developer. Review your code during the day for any bugs. Vote wisely during the day to eliminate the Hackers!';
     case ROLES.HACKER:
-      return 'You are a Hacker. Each night, ALL Hackers vote on a target, then vote together on which corruption to inject. Your own code contains suspicious function names — watch out for the Security Lead!';
+      return 'You are a Hacker. Each night, ALL Hackers vote on a target, then vote together on which corruption to inject. Your own code contains suspicious function names — watch out for the QA!';
     case ROLES.SECURITY_LEAD:
-      return 'You are the Security Lead. Each night, browse up to 2 players\' code looking for suspicious function names. If you find functions like exploit_buffer or rootkit_load — that player is a Hacker!';
+      return 'You are the QA. Each night, browse up to 2 players\' code looking for suspicious function names. If you find functions like exploit_buffer or rootkit_load — that player is a Hacker!';
     case ROLES.ADMIN:
       return 'You are the Admin. At sunrise, scan a player\'s code for corruption. If corrupted, you\'ll see all their files — choose which file has the bug. ONE try only: correct → you protect that player; wrong → that player is eliminated!';
     default:

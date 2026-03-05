@@ -64,7 +64,7 @@ class Room {
 
     // Skip votes
     this.skipVotes = new Set();
-    // Sunrise done votes (admin + security lead press "Finish Sunrise")
+    // Sunrise done votes (admin + QA press "Finish Sunrise")
     this.sunriseDone = new Set();
 
     // Code files per player (populated at game start)
@@ -377,14 +377,14 @@ class Room {
   }
 
   /**
-   * Begin the Sunrise phase — ADMIN and SECURITY LEAD act here.
+   * Begin the Sunrise phase — ADMIN and QA act here.
    * Admin browses code, repairs, and selects a player to protect.
-   * Security Lead browses code and investigates.
+   * QA browses code and investigates.
    */
   startSunrise(broadcast) {
     this._lastBroadcast = broadcast;
     this.setPhase(PHASES.SUNRISE, broadcast, {
-      message: 'Sunrise… Admin and Security Lead review the code and take action.',
+      message: 'Sunrise… Admin and QA review the code and take action.',
       duration: TIMERS.SUNRISE,
     });
 
@@ -670,7 +670,7 @@ class Room {
   }
 
   /**
-   * Track a player's code view (admin or security lead).
+   * Track a player's code view (admin or QA).
    * Returns true if allowed, false if view limit exceeded.
    */
   trackCodeView(playerId, targetId) {
@@ -797,7 +797,7 @@ class Room {
   }
 
   /**
-   * Security Lead scans a player for hacker function signatures.
+   * QA scans a player for hacker function signatures.
    */
   submitSecurityScan(playerId, targetId, sendToPlayer) {
     const player = this.getPlayer(playerId);

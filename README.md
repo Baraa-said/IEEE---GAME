@@ -26,7 +26,7 @@ Built with **React 18 + Tailwind CSS + Vite** (client) and **Node.js + Express +
 
 IEEE Code Wars is a browser-based party game for **6+ players**. Each player is secretly assigned a role at the start. The **Developers** (town) must identify and vote out the **Hackers** (mafia) before they sabotage enough code to crash the project. The game alternates between Day phases (discussion & voting) and Night phases (secret actions).
 
-Every player has a personal folder of C source code files. Hackers inject bugs into other players' code at night, while the Security Lead and Admin use their abilities to investigate and protect the team.
+Every player has a personal folder of C source code files. Hackers inject bugs into other players' code at night, while the QA and Admin use their abilities to investigate and protect the team.
 
 ---
 
@@ -36,7 +36,7 @@ Every player has a personal folder of C source code files. Hackers inject bugs i
 |---|---|
 | **Developer** | The core team. No special night ability — survive, discuss, and vote wisely to find the hackers. |
 | **Hacker** | The saboteurs. Hackers know each other and coordinate at night to inject bugs into a target's code. They have a private chat channel. |
-| **Security Lead** | Can investigate one player per night by scanning their code files for suspicious function names. Identifies whether a player is a hacker. |
+| **QA** | Can investigate one player per night by scanning their code files for suspicious function names. Identifies whether a player is a hacker. |
 | **Admin** | Can scan a player's files for corruption. If corrupted files are found, the Admin must guess which specific file contains the bug — guess correctly and the player is protected; guess wrong and the player is eliminated. |
 
 ### Role Distribution
@@ -47,7 +47,7 @@ Every player has a personal folder of C source code files. Hackers inject bugs i
 | 8–10 | 3 |
 | 11+ | ⌊players × ⅓⌋ |
 
-One **Security Lead** and one **Admin** are always assigned. Remaining non-hacker slots are filled with Developers.
+One **QA** and one **Admin** are always assigned. Remaining non-hacker slots are filled with Developers.
 
 ---
 
@@ -57,13 +57,13 @@ The game cycles through the following phases each sprint (round):
 
 ### 1. Night Phase (5 min)
 - **Hackers** privately discuss and vote on a target to inject a bug into.
-- **Security Lead** scans one player's code for hacker signatures.
+- **QA** scans one player's code for hacker signatures.
 - **Admin** scans one player's files for corruption, then attempts to guess the bugged file.
 - **Developers** wait.
 
 ### 2. Sunrise Phase (3 min)
 - Night results are revealed — who was targeted, whether protections succeeded.
-- Admin and Security Lead can perform additional sunrise actions.
+- Admin and QA can perform additional sunrise actions.
 
 ### 3. Day Discussion (60 sec)
 - All living players discuss openly via chat.
@@ -87,7 +87,7 @@ The game cycles through the following phases each sprint (round):
 Every player receives a personal folder of **2–3 randomly generated C source files** (e.g., `math_utils.c`, `string_ops.c`, `linked_list.c`).
 
 - **Clean files** contain normal, student-level C functions.
-- **Hacker files** contain suspicious function names (e.g., `exploit_buffer`, `rootkit_load`) that the Security Lead can detect during scans.
+- **Hacker files** contain suspicious function names (e.g., `exploit_buffer`, `rootkit_load`) that the QA can detect during scans.
 - **Corrupted files** are created when hackers inject bugs at night — subtle malicious lines inserted into a target's code.
 
 ### Night Actions on Code
@@ -95,7 +95,7 @@ Every player receives a personal folder of **2–3 randomly generated C source f
 | Role | Action |
 |---|---|
 | Hacker | Pick a target player → inject a bug into one of their files |
-| Security Lead | Scan a player's file list → detect hacker-signature function names |
+| QA | Scan a player's file list → detect hacker-signature function names |
 | Admin | Check a player for corruption → if found, guess which file has the bug |
 
 ---
@@ -263,7 +263,7 @@ All game parameters are centralized in `server/src/shared/gameConfig.js`:
 | `DELAYS.NIGHT_TO_DAY` | 3s | Pause between night and day |
 | `MIN_PLAYERS` | 6 | Minimum players to start |
 | `INITIAL_STABILITY` | 3 | System stability (advanced mode) |
-| `MAX_INVESTIGATIONS_PER_NIGHT` | 1 | Security Lead scans per night |
+| `MAX_INVESTIGATIONS_PER_NIGHT` | 1 | QA scans per night |
 | `ADMIN_CHECKS_PER_NIGHT` | 1 | Admin corruption checks per night |
 | `RECONNECT_WINDOW_MS` | 15 min | Time window for player reconnection |
 | `CODE_FILES.MIN_CLEAN` | 2 | Min clean code files per player |

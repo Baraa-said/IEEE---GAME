@@ -360,7 +360,7 @@ function renderRoomCard(room, roomManager) {
           ${room.players.map(p => {
             const roleClass = p.role === 'Hacker' ? 'role-hacker'
               : p.role === 'Admin' ? 'role-admin'
-              : p.role === 'Security Lead' ? 'role-security'
+              : p.role === 'QA' ? 'role-security'
               : 'role-developer';
             const statusClass = p.alive ? 'alive' : 'dead';
             const rowClass = p.disconnected ? 'disconnected' : '';
@@ -372,7 +372,7 @@ function renderRoomCard(room, roomManager) {
                 ${p.isHost ? '<span class="host-badge">HOST</span>' : ''}
                 ${p.disconnected ? ' ⚠️' : ''}
               </td>
-              <td class="${roleClass}">${p.role === 'Hacker' ? '🕷️ ' : p.role === 'Admin' ? '🛠️ ' : p.role === 'Security Lead' ? '🔍 ' : '👨‍💻 '}${p.role}</td>
+              <td class="${roleClass}">${p.role === 'Hacker' ? '🕷️ ' : p.role === 'Admin' ? '🛠️ ' : p.role === 'QA' ? '🔍 ' : '👨‍💻 '}${p.role}</td>
               <td class="${statusClass}">${p.alive ? '✅ Alive' : '☠️ Dead'}</td>
               <td>${p.voteStreak}</td>
               <td>${nightTargetName}</td>

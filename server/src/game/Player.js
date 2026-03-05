@@ -34,10 +34,10 @@ class Player {
     /** Who this player voted for in the current round (player id) */
     this.currentVote = null;
 
-    /** Night action target (player id) – used by Hacker / Security Lead / Admin */
+    /** Night action target (player id) – used by Hacker / QA / Admin */
     this.nightTarget = null;
 
-    /** Latest investigation result for Security Lead */
+    /** Latest investigation result for QA */
     this.lastInvestigation = null;
 
     /** Whether this player is protected by Admin this night */

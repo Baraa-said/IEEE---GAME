@@ -15,7 +15,7 @@ module.exports = {
     VOTING:    45000,    // 45 s  – voting phase
     DEFENSE:   20000,    // 20 s  – accused player's defence
     NIGHT:     300000,    // 5 min – night actions (hackers)
-    SUNRISE:   180000,    // 3 min – sunrise actions (admin + security lead)
+    SUNRISE:   180000,    // 3 min – sunrise actions (admin + QA)
   },
 
   /* ═══════════════════════════════════════════
@@ -49,10 +49,10 @@ module.exports = {
   INITIAL_STABILITY: 3,
 
   /* ═══════════════════════════════════════════
-   *  Security Lead
+   *  QA
    * ═══════════════════════════════════════════ */
   MAX_INVESTIGATIONS_PER_NIGHT: 1,
-  SECURITY_VIEWS_PER_NIGHT: 1,     // how many players the security lead can browse code of
+  SECURITY_VIEWS_PER_NIGHT: 1,     // how many players the QA can browse code of
 
   /* ═════════════════════════════════════════════
    *  Admin
