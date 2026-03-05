@@ -36,10 +36,18 @@ export default function CodeBrowser({
   onGetPlayerCode,
   playerCodeData,
   fellowHackers,
+  nightResult,
+  phaseEndTime,
 }) {
+  const [now, setNow] = React.useState(Date.now());
+
+  React.useEffect(() => {
+    if (!phaseEndTime) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [phaseEndTime]);
   const [selectedPlayerId, setSelectedPlayerId] = useState(myId);
   const [selectedFileIdx, setSelectedFileIdx] = useState(0);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [showInjectPanel, setShowInjectPanel] = useState(true);
 
   // During day, always show own code
@@ -73,9 +81,39 @@ export default function CodeBrowser({
 
   if (!codeFiles || Object.keys(codeFiles).length === 0) return null;
 
-  // For hackers: don't render the code browser at all during night until
-  // the hacker team has agreed on a target. This hides the whole card.
-  if (myRole === ROLES.HACKER && isNight && !hackerVoteStatus?.agreed) return null;
+  // During NIGHT: hide code for everyone until the night resolution completes.
+  // Exception: hackers who have already agreed on a target should be able to
+  // view the agreed target's files (so they can choose the injection).
+  if (isNight && !nightResult?.eliminated) {
+    const hackerCanView = myRole === ROLES.HACKER && hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget;
+    if (!hackerCanView) {
+      return (
+        <div className="cyber-card p-3 text-xs text-gray-400">
+          Code is hidden while the night is in progress. It will be revealed after hackers finish their action.
+        </div>
+      );
+    }
+    // If hackerCanView === true, fall through and show the agreed target code (merged into viewableCode above).
+  }
+
+  // Admin: hide code at sunrise until a successful elimination occurred last night
+  if (myRole === ROLES.ADMIN && isSunrise && !nightResult?.eliminated) {
+    return (
+      <div className="cyber-card p-3 text-xs text-gray-400">
+        Code will be revealed after last night's elimination.
+      </div>
+    );
+  }
+
+  // Global: during sunrise, don't reveal code until scheduled `phaseEndTime`.
+  if (isSunrise && phaseEndTime && now < phaseEndTime) {
+    const secondsLeft = Math.max(0, Math.ceil((phaseEndTime - now) / 1000));
+    return (
+      <div className="cyber-card p-3 text-xs text-gray-400">
+        Code will be revealed in {secondsLeft}s.
+      </div>
+    );
+  }
 
   // Merge playerCodeData (from QA browse)
   const viewableCode = { ...codeFiles };
@@ -99,6 +137,30 @@ export default function CodeBrowser({
       playerName: hackerVoteStatus.agreedTargetName,
       files: hackerVoteStatus.targetCode.files,
     };
+  }
+
+  // Developers should only see a single C file named `developer.c`.
+  if (myRole === ROLES.DEVELOPER) {
+    Object.keys(viewableCode).forEach((pid) => {
+      const player = viewableCode[pid];
+      const origFiles = player?.files || [];
+      // Prefer an existing .c file
+      const cfile = origFiles.find(f => /\.c$/i.test(f.name));
+      let code = '';
+      if (cfile) {
+        code = cfile.code;
+      } else if (origFiles.length > 0) {
+        // Fallback: concatenate other files with headers
+        code = origFiles.map(f => `// ${f.name}\n${f.code}`).join('\n\n');
+      } else {
+        code = '// developer.c\n// No code available.';
+      }
+      const playerNameSafe = (player && player.playerName) ? player.playerName.replace(/\s+/g, '_') : 'developer';
+      viewableCode[pid] = {
+        ...player,
+        files: [{ name: `${playerNameSafe}.c`, code }],
+      };
+    });
   }
 
   const selectedPlayer = selectedPlayerId ? viewableCode[selectedPlayerId] : null;
@@ -213,34 +275,22 @@ export default function CodeBrowser({
 
   // ─── Render ───
   return (
-    <div className={`cyber-card flex flex-col ${isMinimized ? 'h-auto' : 'h-full'}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-cyber-green text-sm"><Folder size={14} /></span>
-          <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold">
-            {isNight ? 'Code Files (Night)' : isSunrise ? 'Code Files (Sunrise)' : 'My Code Files'}
-          </h3>
-          {/* View counter for admin/security */}
-          {isSunrise && (myRole === ROLES.ADMIN || myRole === ROLES.SECURITY_LEAD) && (
-            <span className="text-[10px] px-2 py-0.5 rounded bg-cyber-darker border border-cyber-border text-gray-400">
-              Views: {viewsUsed}/{viewsMax}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => setIsMinimized(!isMinimized)}
-          className="text-xs text-gray-500 hover:text-gray-300 px-2"
-        >
-          {isMinimized ? '▲ Expand' : '▼ Minimize'}
-        </button>
+    <div className={`cyber-card flex flex-col h-full`}>
+      {/* Header: centered title + filename for single-file cases */}
+      <div className="flex flex-col items-center mb-2">
+        <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold">CODE FILES</h3>
+        {isSunrise && (myRole === ROLES.ADMIN || myRole === ROLES.SECURITY_LEAD) && (
+          <span className="text-[10px] mt-1 px-2 py-0.5 rounded bg-cyber-darker border border-cyber-border text-gray-400">
+            Views: {viewsUsed}/{viewsMax}
+          </span>
+        )}
       </div>
 
-      {isMinimized ? null : (
-        <div className="flex flex-col flex-1 min-h-0 gap-2">
-          {/* Player selector */}
-          <div className="flex gap-1 flex-wrap">
-            {selectablePlayers.map((p) => {
+      <div className="flex flex-col flex-1 min-h-0 gap-2">
+          {/* Player selector (hidden when only one player) */}
+          {selectablePlayers.length > 1 && (
+            <div className="flex gap-1 flex-wrap">
+              {selectablePlayers.map((p) => {
               const pid = p.id;
               const pName = p.name || viewableCode[pid]?.playerName || 'Unknown';
               const isSelected = pid === selectedPlayerId;
@@ -264,8 +314,9 @@ export default function CodeBrowser({
                   {isMe && <span className="text-[8px] text-cyber-blue">(you)</span>}
                 </button>
               );
-            })}
-          </div>
+              })}
+            </div>
+          )}
 
           {/* ═══ HACKER: Injection Voting Panel ═══ */}
           {myRole === ROLES.HACKER && isNight && (
@@ -419,27 +470,35 @@ export default function CodeBrowser({
               )
               : selectedPlayer ? (
                 <>
-                  {/* File tabs */}
-                  <div className="flex gap-1 bg-cyber-darker rounded p-1 overflow-x-auto">
-                    {selectedPlayer.files.map((file, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedFileIdx(idx)}
-                        className={`text-[10px] font-mono px-2 py-1 rounded whitespace-nowrap transition-all flex items-center gap-1 ${
-                          selectedFileIdx === idx
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-500 hover:text-gray-300'
-                        }`}
-                      >
-                        <File size={10} /> {file.name}
-                        {/* Highlight infected file */}
-                        {myRole === ROLES.ADMIN && adminScanResult?.corrupted &&
-                         adminScanResult?.fileIdx === idx && (
-                          <span className="text-red-400 ml-1"><AlertTriangle size={10} /></span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  {/* If only one file (developer), show the filename centered under the title. Otherwise show tabs. */}
+                  {selectedPlayer.files.length === 1 ? (
+                    <div className="flex justify-center">
+                      <div className="mt-1 mb-1 px-3 py-1 bg-cyber-darker rounded text-[12px] font-mono text-gray-200">
+                        {selectedPlayer.files[0]?.name}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 bg-cyber-darker rounded p-1 overflow-x-auto">
+                      {selectedPlayer.files.map((file, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedFileIdx(idx)}
+                          className={`text-[10px] font-mono px-2 py-1 rounded whitespace-nowrap transition-all flex items-center gap-1 ${
+                            selectedFileIdx === idx
+                              ? 'bg-gray-700 text-white'
+                              : 'text-gray-500 hover:text-gray-300'
+                          }`}
+                        >
+                          <File size={10} /> {file.name}
+                          {/* Highlight infected file */}
+                          {myRole === ROLES.ADMIN && adminScanResult?.corrupted &&
+                           adminScanResult?.fileIdx === idx && (
+                            <span className="text-red-400 ml-1"><AlertTriangle size={10} /></span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Code display */}
                   <div className="flex-1 overflow-auto bg-[#0d1117] rounded border border-gray-800 min-h-0">

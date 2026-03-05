@@ -181,27 +181,14 @@ export default function GameScreen({
             advancedMode={gameState?.advancedMode}
             message={phaseMessage}
             phaseEndTime={phaseEndTime}
+            timerEnabled={false}
+            showSkip={true}
+            onSkipPhase={onSkipPhase}
+            hasSkipped={hasSkipped}
+            amAlive={amAlive}
           />
 
-          {/* Skip Button */}
-          {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT, PHASES.SUNRISE].includes(phase) && (
-            <div className="cyber-card py-2 flex items-center justify-between mb-4">
-              <span className="text-xs text-gray-400">
-                <SkipForward size={12} className="inline-block mr-1" /> Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
-              </span>
-              <button
-                onClick={onSkipPhase}
-                disabled={hasSkipped}
-                className={`text-xs px-3 py-1 rounded transition-all ${
-                  hasSkipped
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-cyber-blue/20 border border-cyber-blue/40 text-cyber-blue hover:bg-cyber-blue/30'
-                }`}
-              >
-                {hasSkipped ? '✓ Ready to Skip' : <><SkipForward size={12} className="inline-block mr-1" /> Skip Phase</>}
-              </button>
-            </div>
-          )}
+          
 
           {/* Phase-specific content */}
           {isVoting && (
@@ -515,6 +502,8 @@ export default function GameScreen({
               onGetPlayerCode={onGetPlayerCode}
               playerCodeData={playerCodeData}
               fellowHackers={fellowHackers}
+              nightResult={nightResult}
+              phaseEndTime={phaseEndTime}
               />
             </div>
           )}
