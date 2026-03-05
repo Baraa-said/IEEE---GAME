@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ROLES } from '../shared/constants';
 import { getAvatarForPlayer } from '../utils/avatars';
 import MenuBackground from './MenuBackground';
 import { AlertTriangle, Bot, Code2, Bug, Wrench, Search, CheckCircle, Rocket, Crown } from 'lucide-react';
@@ -27,13 +28,27 @@ export default function LobbyScreen({
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (name.trim()) onCreateRoom(name.trim());
+    if (name.trim()) {
+      onCreateRoom(name.trim());
+    }
   };
 
   const handleJoin = (e) => {
     e.preventDefault();
-    if (name.trim() && joinCode.trim()) onJoinRoom(joinCode.trim(), name.trim());
+    if (name.trim() && joinCode.trim()) {
+      onJoinRoom(joinCode.trim(), name.trim());
+    }
   };
+
+  // Once we've successfully created/joined a room, if user selected a preferred role,
+  // send the role request to the server (server requires being in a room to accept it).
+  React.useEffect(() => {
+    if (roomId && chosenRole) {
+      onRequestRole?.(chosenRole);
+      // clear chosenRole locally to avoid re-sending
+      setChosenRole(null);
+    }
+  }, [roomId]);
 
   // If we're in a room, show the lobby waiting room
   if (roomId && gameState) {
@@ -90,13 +105,23 @@ export default function LobbyScreen({
 
           {/* Start button (host only) */}
           {isHost && (
-            <button
-              onClick={() => onStartGame(advancedMode)}
-              disabled={gameState.players.length < (gameState.minPlayers || 6)}
-              className="cyber-btn-green w-full text-center"
-            >
-              <Rocket size={16} className="inline-block mr-1" /> Start Game
-            </button>
+            <>
+              <button
+                onClick={() => onFillBots?.(6)}
+                className="cyber-btn-blue w-full text-center mb-2"
+                title="Populate the lobby with 6 random bot players (testing)"
+              >
+                <Bot size={14} className="inline-block mr-1" /> Fill 6 Bots
+              </button>
+
+              <button
+                onClick={() => onStartGame(advancedMode)}
+                disabled={gameState.players.length < (gameState.minPlayers || 6)}
+                className="cyber-btn-green w-full text-center"
+              >
+                <Rocket size={16} className="inline-block mr-1" /> Start Game
+              </button>
+            </>
           )}
 
           {!isHost && (
@@ -160,6 +185,21 @@ export default function LobbyScreen({
             maxLength={20}
             className="cyber-input w-full"
           />
+        </div>
+
+        {/* Preferred Role */}
+        <div className="mb-4">
+          <label className="block text-xs text-gray-400 uppercase tracking-wider mb-1">Preferred Role (optional)</label>
+          <select
+            value={chosenRole || ''}
+            onChange={(e) => setChosenRole(e.target.value || null)}
+            className="cyber-input w-full"
+          >
+            <option value="">No preference</option>
+            {Object.entries(ROLES).map(([k, v]) => (
+              <option key={k} value={v}>{v}</option>
+            ))}
+          </select>
         </div>
 
         {/* Create Room */}

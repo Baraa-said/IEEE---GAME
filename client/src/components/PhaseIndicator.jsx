@@ -6,13 +6,24 @@ import { Sun, Vote, Shield, Moon, Sunrise, Flag } from 'lucide-react';
 /**
  * PhaseIndicator – Displays the current phase, sprint number, and countdown timer.
  */
-export default function PhaseIndicator({ phase, sprint, systemStability, advancedMode, message, phaseEndTime }) {
+export default function PhaseIndicator({ phase, sprint, systemStability, advancedMode, message, phaseEndTime,
+  // optional skip controls
+  showSkip, onSkipPhase, hasSkipped, amAlive, timerEnabled = true
+}) {
   const [timeLeft, setTimeLeft] = useState(0);
   const intervalRef = useRef(null);
 
   useEffect(() => {
+    // always clear any previous interval
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (!phaseEndTime) { setTimeLeft(0); return; }
+
+    // If timer is disabled, set a single static remaining value and don't start the interval
+    if (!timerEnabled) {
+      const remaining = Math.max(0, Math.ceil((phaseEndTime - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      return; // do not start ticking
+    }
 
     const update = () => {
       const remaining = Math.max(0, Math.ceil((phaseEndTime - Date.now()) / 1000));
@@ -24,7 +35,7 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
     update();
     intervalRef.current = setInterval(update, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [phaseEndTime]);
+  }, [phaseEndTime, timerEnabled]);
 
   const phaseDisplay = {
     [PHASES.DAY_DISCUSSION]: { label: 'STANDUP MEETING', icon: Sun, color: 'text-cyber-yellow', bg: 'bg-cyber-yellow/10', border: 'border-cyber-yellow/30' },
@@ -65,6 +76,25 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
               {formatTime(timeLeft)}
             </div>
           )}
+
+          {/* compact Skip button next to the timer */}
+          {showSkip && amAlive && (
+            <div>
+              <button
+                onClick={onSkipPhase}
+                disabled={hasSkipped}
+                title={hasSkipped ? 'You are ready to skip' : 'Skip'}
+                className={`text-[12px] px-3 py-0.5 rounded-full transition-all ${
+                  hasSkipped
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-cyber-blue/20 border border-cyber-blue/40 text-cyber-blue hover:bg-cyber-blue/30'
+                }`}
+              >
+                Skip
+              </button>
+            </div>
+          )}
+
           {advancedMode && (
             <div className="text-right">
               <p className="text-xs text-gray-400">Stability</p>

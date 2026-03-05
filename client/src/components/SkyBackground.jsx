@@ -39,38 +39,38 @@ export default function SkyBackground({ phase }) {
       case PHASES.DAY_DISCUSSION:
         return {
           body: 'sun',
-          bodyX: 40,
-          bodyY: 15,
+          bodyX: 50,
+          bodyY: 12,
           skyGradient: 'from-[#1a2a4a] via-[#2a4a6a] to-[#3a6a8a]',
-          glowColor: 'rgba(255, 220, 100, 0.2)',
-          glowSize: 100,
-          bodySize: 45,
+          glowColor: 'rgba(255, 220, 100, 0.35)',
+          glowSize: 160,
+          bodySize: 70,
           showStars: false,
-          opacity: 0.4,
+          opacity: 0.45,
         };
       case PHASES.DAY_VOTING:
         return {
           body: 'sun',
-          bodyX: 55,
-          bodyY: 20,
+          bodyX: 62,
+          bodyY: 12,
           skyGradient: 'from-[#1a2a4a] via-[#2a4a6a] to-[#3a6a8a]',
-          glowColor: 'rgba(255, 220, 100, 0.2)',
-          glowSize: 100,
-          bodySize: 45,
+          glowColor: 'rgba(255, 220, 100, 0.35)',
+          glowSize: 160,
+          bodySize: 70,
           showStars: false,
-          opacity: 0.4,
+          opacity: 0.45,
         };
       case PHASES.DAY_DEFENSE:
         return {
           body: 'sun',
-          bodyX: 65,
-          bodyY: 30,
+          bodyX: 72,
+          bodyY: 16,
           skyGradient: 'from-[#1a2a4a] via-[#3a4a5a] to-[#5a3a2a]',
-          glowColor: 'rgba(255, 180, 80, 0.2)',
-          glowSize: 90,
-          bodySize: 45,
+          glowColor: 'rgba(255, 200, 90, 0.32)',
+          glowSize: 140,
+          bodySize: 65,
           showStars: false,
-          opacity: 0.45,
+          opacity: 0.47,
         };
       default:
         return {
@@ -103,19 +103,20 @@ export default function SkyBackground({ phase }) {
     return result;
   }, [skyState.showStars]);
 
-  // SVG tile for IEEE watermark — uses a <pattern> with rotation so the text
-  // seamlessly tiles across the entire area without any cut-off words.
-  const ieeeSvg = useMemo(() => {
+  // Subtle tiled motif (mafia-friendly) — small hat/knife shapes, very low opacity.
+  const patternSvg = useMemo(() => {
     const raw = [
-      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">',
-      '<rect width="400" height="400" fill="#d6e4f0"/>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">',
+      '<rect width="240" height="240" fill="transparent"/>',
       '<defs>',
-      '<pattern id="p" width="160" height="70" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)">',
-      '<text x="5" y="22" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="24" fill="#c2d3e6" letter-spacing="2">IEEE</text>',
-      '<text x="85" y="57" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="24" fill="#c2d3e6" letter-spacing="2">IEEE</text>',
+      '<pattern id="m" width="120" height="120" patternUnits="userSpaceOnUse">',
+      '<g fill-opacity="0.05" fill="#ffffff">',
+      '<path d="M10 70 C30 30 90 30 110 70 L100 75 C85 45 55 45 40 75 Z" />',
+      '<path d="M80 20 L90 40 L88 42 L100 60 L96 64 L84 46 L82 48 Z" transform="translate(10,40) rotate(15 90 60)"/>',
+      '</g>',
       '</pattern>',
       '</defs>',
-      '<rect width="400" height="400" fill="url(#p)"/>',
+      '<rect width="100%" height="100%" fill="url(#m)" />',
       '</svg>',
     ].join('');
     return `data:image/svg+xml,${encodeURIComponent(raw)}`;
@@ -126,25 +127,25 @@ export default function SkyBackground({ phase }) {
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 0 }}
     >
-      {/* Light blue IEEE watermark background — animated scrolling to top-left */}
+      {/* Subtle tiled motif (static) */}
       <div
-        className="absolute"
+        className="absolute inset-0"
         style={{
-          top: '-400px',
-          left: '-400px',
-          right: '-400px',
-          bottom: '-400px',
-          backgroundImage: `url("${ieeeSvg}")`,
+          top: '-200px',
+          left: '-200px',
+          right: '-200px',
+          bottom: '-200px',
+          backgroundImage: `url("${patternSvg}")`,
           backgroundRepeat: 'repeat',
-          backgroundSize: '400px 400px',
-          animation: 'ieee-scroll 12s linear infinite',
+          backgroundSize: '240px 240px',
           zIndex: 1,
+          opacity: 0.06,
         }}
       />
 
       {/* Sky gradient overlay */}
       <div
-        className={`absolute inset-0 bg-gradient-to-b ${skyState.skyGradient} transition-all duration-[3000ms] ease-in-out`}
+        className={`absolute inset-0 bg-gradient-to-b ${skyState.skyGradient}`}
         style={{ opacity: skyState.opacity, zIndex: 2 }}
       />
 
@@ -152,15 +153,13 @@ export default function SkyBackground({ phase }) {
       {stars.map((star, i) => (
         <div
           key={i}
-          className="absolute rounded-full bg-white animate-pulse"
+          className="absolute rounded-full bg-white"
           style={{
             left: `${star.x}%`,
             top: `${star.y}%`,
             width: `${star.size}px`,
             height: `${star.size}px`,
-            animationDelay: `${star.delay}s`,
-            animationDuration: `${star.duration}s`,
-            opacity: 0.6,
+            opacity: 0.5,
           }}
         />
       ))}
@@ -168,7 +167,7 @@ export default function SkyBackground({ phase }) {
       {/* Celestial body container with smooth transition */}
       {skyState.body !== 'none' && (
         <div
-          className="absolute transition-all duration-[3000ms] ease-in-out"
+          className="absolute"
           style={{
             left: `${skyState.bodyX}%`,
             top: `${skyState.bodyY}%`,
@@ -177,7 +176,7 @@ export default function SkyBackground({ phase }) {
         >
           {/* Outer glow */}
           <div
-            className="absolute rounded-full transition-all duration-[3000ms] ease-in-out"
+            className="absolute rounded-full"
             style={{
               width: `${skyState.glowSize}px`,
               height: `${skyState.glowSize}px`,
@@ -192,7 +191,7 @@ export default function SkyBackground({ phase }) {
           {skyState.body === 'moon' ? (
             /* Moon */
             <div
-              className="relative transition-all duration-[3000ms] ease-in-out"
+              className="relative"
               style={{
                 width: `${skyState.bodySize}px`,
                 height: `${skyState.bodySize}px`,
@@ -250,33 +249,28 @@ export default function SkyBackground({ phase }) {
               }}
             >
               {/* Sun rays - rotating */}
-              <div
-                className="absolute inset-[-50%] animate-spin"
-                style={{
-                  animationDuration: '30s',
-                }}
-              >
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-                  <div
-                    key={angle}
-                    className="absolute"
-                    style={{
-                      width: '2px',
-                      height: '100%',
-                      left: '50%',
-                      top: '0',
-                      transform: `translateX(-50%) rotate(${angle}deg)`,
-                      background: `linear-gradient(to bottom, transparent 10%, rgba(255,200,50,0.15) 30%, transparent 50%, rgba(255,200,50,0.15) 70%, transparent 90%)`,
-                    }}
-                  />
-                ))}
-              </div>
+                <div className="absolute inset-[-50%]">
+                  {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+                    <div
+                      key={angle}
+                      className="absolute"
+                      style={{
+                        width: '2px',
+                        height: '100%',
+                        left: '50%',
+                        top: '0',
+                        transform: `translateX(-50%) rotate(${angle}deg)`,
+                        background: `linear-gradient(to bottom, transparent 10%, rgba(255,200,50,0.25) 30%, transparent 50%, rgba(255,200,50,0.25) 70%, transparent 90%)`,
+                      }}
+                    />
+                  ))}
+                </div>
               {/* Sun body */}
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
                   background: 'radial-gradient(circle at 45% 40%, #fff8e0, #ffd700 40%, #ff8c00 80%, #ff6b00)',
-                  boxShadow: '0 0 30px rgba(255, 200, 50, 0.4), 0 0 60px rgba(255, 150, 0, 0.2)',
+                  boxShadow: '0 0 50px rgba(255, 200, 50, 0.6), 0 0 120px rgba(255, 150, 0, 0.35) ',
                 }}
               />
             </div>
