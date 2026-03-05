@@ -62,8 +62,7 @@ export default function ChatPanel({
   };
 
   return (
-    <div className="cyber-card flex flex-col h-full">
-      {/* Tab header */}
+<div className="cyber-card flex flex-col">      {/* Tab header */}
       <div className="flex items-center gap-2 mb-2">
         <button
           onClick={() => setShowHackerChat(false)}
@@ -92,8 +91,7 @@ export default function ChatPanel({
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-1 mb-2 min-h-0 max-h-60"
-      >
+className="flex-1 overflow-y-auto space-y-1 mb-2 min-h-0"      >
         {activeMessages.length === 0 && (
           <p className="text-gray-600 text-xs text-center py-4">No messages yet…</p>
         )}

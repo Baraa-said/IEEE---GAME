@@ -90,28 +90,47 @@ export default function GameScreen({
   return (
     <div className={`min-h-screen flex flex-col ${theme.insetShadow} relative z-10`}>
       {/* Top bar */}
-      <header className={`${theme.headerBg} backdrop-blur-md border-b ${theme.headerBorder} px-4 py-2 flex items-center justify-between z-10`}>
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="IEEE Code Wars" className="h-8 hidden sm:block" />
-          <h1 className={`text-sm font-bold ${theme.titleColor} ${theme.titleGlow} tracking-widest`}>IEEE CODE WARS</h1>
-          <span className="text-xs text-gray-500 font-mono bg-black/40 px-2 py-0.5 rounded">R:{gameState?.roomId}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Role badge */}
-          <div className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-lg ${theme.badgeBg} ${theme.badgeBorder} ${theme.badgeText}`}>
-            <img src={getAvatarForRole(myRole)} alt={myRole} className="w-5 h-5 rounded-full" />
-            <span className="font-bold tracking-wider">{myRole?.replace('_', ' ')}</span>
-          </div>
-          {!amAlive && (
-            <span className="text-xs bg-red-900/60 text-red-400 font-bold px-2 py-1.5 rounded uppercase tracking-widest border border-red-500/30">TERMINATED</span>
-          )}
-        </div>
-      </header>
+  <header className={`${theme.headerBg} backdrop-blur-md border-b ${theme.headerBorder} px-4 py-2 grid grid-cols-3 items-center z-10`}>
+
+  {/* Left - Logo */}
+  <div className="flex items-center gap-3 justify-start">
+    <img src="/logo.svg" alt="Computer Society Mafia Night" className="h-8 hidden sm:block" />
+    <span className="text-xs text-gray-500 font-mono bg-black/40 px-2 py-0.5 rounded">
+      R:{gameState?.roomId}
+    </span>
+  </div>
+
+  {/* Center - Title */}
+  <div className="text-center">
+    <h1 className={`text-sm font-bold ${theme.titleColor} ${theme.titleGlow} tracking-widest`}>
+      COMPUTER SOCIETY MAFIA NIGHT - IEEE EDITION
+    </h1>
+  </div>
+
+  {/* Right - Role */}
+  <div className="flex items-center gap-3 justify-end">
+    
+    <div className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-lg ${theme.badgeBg} ${theme.badgeBorder} ${theme.badgeText}`}>
+      <img src={getAvatarForRole(myRole)} alt={myRole} className="w-5 h-5 rounded-full" />
+      <span className="font-bold tracking-wider">
+        {myRole?.replace('_', ' ')}
+      </span>
+    </div>
+
+    {!amAlive && (
+      <span className="text-xs bg-red-900/60 text-red-400 font-bold px-2 py-1.5 rounded uppercase tracking-widest border border-red-500/30">
+        TERMINATED
+      </span>
+    )}
+
+  </div>
+
+</header>
 
       {/* Main grid */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 overflow-hidden">
         {/* Left: Player list */}
-        <div className="lg:col-span-3 overflow-y-auto">
+        <div className="lg:col-span-3 flex flex-col h-full overflow-y-auto">
           <PlayerList
             alivePlayers={alivePlayers}
             deadPlayers={deadPlayers}
@@ -166,7 +185,7 @@ export default function GameScreen({
 
           {/* Skip Button */}
           {amAlive && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE, PHASES.NIGHT, PHASES.SUNRISE].includes(phase) && (
-            <div className="cyber-card py-2 flex items-center justify-between">
+            <div className="cyber-card py-2 flex items-center justify-between mb-4">
               <span className="text-xs text-gray-400">
                 <SkipForward size={12} className="inline-block mr-1" /> Skip: {skipCount}/{totalAliveForSkip || alivePlayers.length} ready
               </span>
@@ -236,7 +255,7 @@ export default function GameScreen({
           )}
 
           {isSunrise && (
-            <div className="space-y-3 animate-slide-up">
+            <div className="space-y-3 animate-slide-up mb-6">
               {/* Admin sunrise panel */}
               {myRole === ROLES.ADMIN && amAlive && (
                 <div className="space-y-3">
@@ -391,11 +410,11 @@ export default function GameScreen({
                 </div>
               )}
 
-              {/* Security Lead sunrise panel */}
+              {/* QA sunrise panel */}
               {myRole === ROLES.SECURITY_LEAD && amAlive && (
                 <div className="cyber-card border-yellow-500/30 bg-yellow-900/10 space-y-3">
                   <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2 flex items-center gap-1.5">
-                    <SunriseIcon size={14} /> Security Lead — Scan Suspects
+                    <SunriseIcon size={14} /> QA — Scan Suspects
                   </h3>
                   <p className="text-xs text-gray-400 mb-3">
                     Select a player to scan their code for hacker injections:
@@ -444,7 +463,7 @@ export default function GameScreen({
                     <SunriseIcon size={14} /> Sunrise
                   </h3>
                   <p className="text-sm text-gray-500">
-                    The Admin and Security Lead are reviewing code... Wait for the day phase.
+                    The Admin and QA are reviewing code... Wait for the day phase.
                   </p>
                 </div>
               )}
@@ -475,7 +494,8 @@ export default function GameScreen({
 
           {/* Code Browser – always visible during game */}
           {codeFiles && Object.keys(codeFiles).length > 0 && (
-            <CodeBrowser
+            <div className="mt-4">
+              <CodeBrowser
               codeFiles={codeFiles}
               myId={myId}
               myRole={myRole}
@@ -495,13 +515,14 @@ export default function GameScreen({
               onGetPlayerCode={onGetPlayerCode}
               playerCodeData={playerCodeData}
               fellowHackers={fellowHackers}
-            />
+              />
+            </div>
           )}
         </div>
 
         {/* Right: Chat */}
-        <div className="lg:col-span-4 flex flex-col min-h-0">
-          <ChatPanel
+<div className="lg:col-span-4">
+            <ChatPanel
             messages={messages}
             hackerMessages={hackerMessages}
             onSendChat={onSendChat}

@@ -46,7 +46,7 @@ export default function PhaseIndicator({ phase, sprint, systemStability, advance
   const isUrgent = timeLeft > 0 && timeLeft <= 10;
 
   return (
-    <div className={`${config.bg} border ${config.border} rounded-lg p-3 mb-4`}>
+    <div className={`bg-[#0b1117] border ${config.border} rounded-lg p-3 mb-5`}>
       <div className="flex items-center justify-between">
         <div>
           <p className={`text-xs uppercase tracking-wider ${config.color} font-bold flex items-center gap-1.5`}>

@@ -87,7 +87,7 @@ export const ROLE_THEMES = {
   },
 
   [ROLES.SECURITY_LEAD]: {
-    name: 'Security Lead',
+    name: 'QA',
     primary: '#ffcc00',
     primaryRgb: '255, 204, 0',
     secondary: '#ffe066',

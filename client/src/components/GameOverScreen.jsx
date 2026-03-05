@@ -40,7 +40,7 @@ export default function GameOverScreen({ data, myId }) {
               const roleIcons = {
                 Developer: Code2,
                 Hacker: Bug,
-                'Security Lead': Search,
+                'QA': Search,
                 Admin: Wrench,
               };
               const isMe = p.id === myId;

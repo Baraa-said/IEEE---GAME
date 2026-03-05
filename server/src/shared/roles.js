@@ -5,7 +5,7 @@
 const ROLES = Object.freeze({
   DEVELOPER: 'Developer',
   HACKER: 'Hacker',
-  SECURITY_LEAD: 'Security Lead',
+  SECURITY_LEAD: 'QA',
   ADMIN: 'Admin',
 });
 

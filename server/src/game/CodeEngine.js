@@ -5,7 +5,7 @@
  * ─────────────────────────────────────────────────────────────
  * 1. Each player gets a folder with simple C files (clean functions).
  * 2. Hackers' files contain SUSPICIOUS function names that hint they
- *    are hackers (e.g. exploit_buffer, rootkit_load). The Security Lead
+ *    are hackers (e.g. exploit_buffer, rootkit_load). The QA
  *    can scan a player's code to see these telltale names.
  * 3. During DAY players can only see THEIR OWN code.
  * 4. During NIGHT:
@@ -13,7 +13,7 @@
  *      (insert a subtle bug / malicious line).
  *    - Admin can CHECK if a player's file is corrupted (2 checks/night).
  *      If corrupted, the admin can then FIX it.
- *    - Security Lead can scan a player's file list for hacker-signature
+ *    - QA can scan a player's file list for hacker-signature
  *      function names. If found → that player is a hacker.
  */
 
@@ -385,7 +385,7 @@ int main() {
 
 /* ═══════════════════════════════════════════════════════════════
  *  HACKER SIGNATURE FILES — contain suspicious function names
- *  that the Security Lead can detect.
+ *  that the QA can detect.
  * ═══════════════════════════════════════════════════════════════ */
 
 const HACKER_SIGNATURE_FILES = [
@@ -823,7 +823,7 @@ class CodeEngine {
   }
 
   /* ═══════════════════════════════════════════
-   *  SECURITY LEAD ACTION: scan for hacker signatures
+   *  QA ACTION: scan for hacker signatures
    * ═══════════════════════════════════════════ */
   static scanForHackerSignatures(codeStore, targetId) {
     const entry = codeStore.get(targetId);

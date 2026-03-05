@@ -3,9 +3,9 @@
  * night actions (hacker attack, investigation, protection).
  *
  * Role distribution:
- *   6-7  players → 2 Hackers, 1 Admin, 1 Security Lead, rest Developers
- *   8-10 players → 3 Hackers, 1 Admin, 1 Security Lead, rest Developers
- *   11+  players → floor(count/3) Hackers (min 3), 1 Admin, 1 Security Lead, rest Developers
+ *   6-7  players → 2 Hackers, 1 Admin, 1 QA, rest Developers
+ *   8-10 players → 3 Hackers, 1 Admin, 1 QA, rest Developers
+ *   11+  players → floor(count/3) Hackers (min 3), 1 Admin, 1 QA, rest Developers
  */
 
 const ROLES = require('../shared/roles');
@@ -63,7 +63,7 @@ class RoleEngine {
    * @param {Player[]} params.alivePlayers - all alive players
    * @param {string|null} params.hackerTargetId - id of player hackers chose to attack
    * @param {string|null} params.adminTargetId  - id of player admin chose to protect
-   * @param {string|null} params.securityTargetId - id of player security lead chose to investigate
+   * @param {string|null} params.securityTargetId - id of player QA chose to investigate
    * @param {number} params.systemStability - current stability (advanced mode)
    * @param {boolean} params.advancedMode
    *
@@ -78,7 +78,7 @@ class RoleEngine {
       newStability: systemStability,
     };
 
-    // --- Investigation (Security Lead investigates up to 2 players) ---
+    // --- Investigation (QA investigates up to 2 players) ---
     if (securityTargetIds && securityTargetIds.length > 0) {
       for (const targetId of securityTargetIds) {
         const target = alivePlayers.find(p => p.id === targetId);
