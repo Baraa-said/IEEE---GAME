@@ -35,6 +35,7 @@ export default function CodeBrowser({
   // Browse other player's code
   onGetPlayerCode,
   playerCodeData,
+  hackerInjected,
   fellowHackers,
   nightResult,
   phaseEndTime,
@@ -64,36 +65,62 @@ export default function CodeBrowser({
     setSelectedFileIdx(0);
   }, [selectedPlayerId]);
 
-  // When QA selects a different player at sunrise, request their code
-  // When hacker selects during night (via agreed target), code comes from vote status
+  // NIGHT: hackers should only see the agreed target after both hackers agree.
+  useEffect(() => {
+    if (isNight && myRole === ROLES.HACKER) {
+      if (hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget) {
+        setSelectedPlayerId(hackerVoteStatus.agreedTarget);
+      } else {
+        setSelectedPlayerId(myId);
+      }
+      setSelectedFileIdx(0);
+      setShowInjectPanel(true);
+    }
+  }, [isNight, myRole, myId, hackerVoteStatus?.agreed, hackerVoteStatus?.agreedTarget]);
+
+  // When selecting a different player, request their code from the server
   useEffect(() => {
     if (selectedPlayerId && selectedPlayerId !== myId) {
-      // QA browses during sunrise
-      if (isSunrise && myRole === ROLES.SECURITY_LEAD) {
-        onGetPlayerCode?.(selectedPlayerId);
-      }
-      // Hackers browse during night
-      if (isNight && myRole === ROLES.HACKER) {
+      const canRequestCode = !isNight || myRole !== ROLES.HACKER
+        || (hackerVoteStatus?.agreed && selectedPlayerId === hackerVoteStatus.agreedTarget);
+
+      if (canRequestCode) {
         onGetPlayerCode?.(selectedPlayerId);
       }
     }
-  }, [selectedPlayerId, isNight, isSunrise, myRole, myId]);
+  }, [selectedPlayerId, isNight, isSunrise, myRole, myId, onGetPlayerCode, hackerVoteStatus?.agreed, hackerVoteStatus?.agreedTarget]);
 
   if (!codeFiles || Object.keys(codeFiles).length === 0) return null;
+
+  const isNightReview = isNight && !!hackerInjected;
 
   // During NIGHT: hide code for everyone until the night resolution completes.
   // Exception: hackers who have already agreed on a target should be able to
   // view the agreed target's files (so they can choose the injection).
   if (isNight && !nightResult?.eliminated) {
-    const hackerCanView = myRole === ROLES.HACKER && hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget;
-    if (!hackerCanView) {
+    const isHacker = myRole === ROLES.HACKER;
+    const qaCanReviewNow = myRole === ROLES.SECURITY_LEAD && isNightReview;
+
+    // Once QA review starts, the QA panel is the source of truth; hide this placeholder.
+    if (qaCanReviewNow) {
+      return null;
+    }
+
+    if (!isHacker) {
       return (
         <div className="cyber-card p-3 text-xs text-gray-400">
           Code is hidden while the night is in progress. It will be revealed after hackers finish their action.
         </div>
       );
     }
-    // If hackerCanView === true, fall through and show the agreed target code (merged into viewableCode above).
+
+    if (!hackerVoteStatus?.agreed || !hackerVoteStatus?.agreedTarget) {
+      return (
+        <div className="cyber-card p-3 text-xs text-gray-400">
+          Hackers must both agree on one player first. After agreement, the selected player's code will appear here.
+        </div>
+      );
+    }
   }
 
   // Admin: hide code at sunrise until a successful elimination occurred last night
@@ -115,12 +142,16 @@ export default function CodeBrowser({
     );
   }
 
-  // Merge playerCodeData (from QA browse)
+  // Merge playerCodeData (from browse requests — QA, hacker, etc.)
   const viewableCode = { ...codeFiles };
   if (playerCodeData && playerCodeData.targetId && playerCodeData.files) {
+    const pName = playerCodeData.playerName || 'Unknown';
     viewableCode[playerCodeData.targetId] = {
-      playerName: playerCodeData.playerName,
-      files: playerCodeData.files,
+      playerName: pName,
+      files: playerCodeData.files.map(f => ({
+        ...f,
+        name: pName.replace(/\s+/g, '_') + '.c',
+      })),
     };
   }
   // For admin scan result: merge corrupted player's code if scan found corruption
@@ -163,12 +194,32 @@ export default function CodeBrowser({
     });
   }
 
-  const selectedPlayer = selectedPlayerId ? viewableCode[selectedPlayerId] : null;
+  const displayedCode = (() => {
+    if (isNight && myRole === ROLES.HACKER) {
+      if (hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget && viewableCode[hackerVoteStatus.agreedTarget]) {
+        return {
+          [hackerVoteStatus.agreedTarget]: viewableCode[hackerVoteStatus.agreedTarget],
+        };
+      }
+      return {};
+    }
+    return viewableCode;
+  })();
+
+  const effectiveSelectedPlayerId =
+    isNight && myRole === ROLES.HACKER && hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget
+      ? hackerVoteStatus.agreedTarget
+      : selectedPlayerId;
+
+  const selectedPlayer = effectiveSelectedPlayerId ? displayedCode[effectiveSelectedPlayerId] : null;
   const selectedFile = selectedPlayer?.files?.[selectedFileIdx];
 
-  // Injection options — from hackerVoteStatus when target is agreed
-  const injectionOptions = (hackerVoteStatus?.agreed && hackerVoteStatus?.injectionOptions) || [];
-  const alreadyInjected = hackerInjectResult?.success || false;
+  // Injection options — from hackerVoteStatus OR from playerCodeData (browse)
+  const injectionOptions = 
+    (hackerVoteStatus?.agreed && hackerVoteStatus?.injectionOptions) ||
+    (playerCodeData?.injectionOptions && playerCodeData?.targetId === selectedPlayerId ? playerCodeData.injectionOptions : null) ||
+    [];
+  const alreadyInjected = hackerInjectResult?.success || playerCodeData?.alreadyInjected || false;
 
   // Get injection options for the currently selected file
   const currentFileInjections = injectionOptions.find(o => o.fileIdx === selectedFileIdx);
@@ -243,14 +294,15 @@ export default function CodeBrowser({
       return [{ id: myId, name: alivePlayers?.find(p => p.id === myId)?.name || 'You' }];
     }
 
-    // NIGHT: Hacker sees agreed target + self
+    // NIGHT: Hacker sees only the agreed target
     if (isNight && myRole === ROLES.HACKER) {
-      const self = [{ id: myId, name: alivePlayers?.find(p => p.id === myId)?.name || 'You' }];
       if (hackerVoteStatus?.agreed && hackerVoteStatus?.agreedTarget) {
-        const targetName = hackerVoteStatus.agreedTargetName || 'Target';
-        self.push({ id: hackerVoteStatus.agreedTarget, name: targetName });
+        return [{
+          id: hackerVoteStatus.agreedTarget,
+          name: hackerVoteStatus.agreedTargetName || displayedCode[hackerVoteStatus.agreedTarget]?.playerName || 'Selected Player',
+        }];
       }
-      return self;
+      return [];
     }
 
     // SUNRISE Admin: own code + scanned corrupted player (if any)
@@ -287,13 +339,13 @@ export default function CodeBrowser({
       </div>
 
       <div className="flex flex-col flex-1 min-h-0 gap-2">
-          {/* Player selector (hidden when only one player) */}
-          {selectablePlayers.length > 1 && (
+          {/* Player selector — show when >1 OR when a single hacker target is displayed */}
+          {(selectablePlayers.length > 1 || (selectablePlayers.length === 1 && isNight && myRole === ROLES.HACKER)) && (
             <div className="flex gap-1 flex-wrap">
               {selectablePlayers.map((p) => {
               const pid = p.id;
-              const pName = p.name || viewableCode[pid]?.playerName || 'Unknown';
-              const isSelected = pid === selectedPlayerId;
+              const pName = p.name || displayedCode[pid]?.playerName || 'Unknown';
+              const isSelected = pid === effectiveSelectedPlayerId;
               const isMe = pid === myId;
               return (
                 <button
@@ -319,30 +371,17 @@ export default function CodeBrowser({
           )}
 
           {/* ═══ HACKER: Injection Voting Panel ═══ */}
-          {myRole === ROLES.HACKER && isNight && (
+          {myRole === ROLES.HACKER && isNight && selectedPlayerId !== myId && (
             <div className="space-y-2">
-              {!hackerVoteStatus?.agreed ? (
-                <div className="text-xs p-2 rounded border bg-gray-800 border-gray-600 text-gray-400 flex items-center gap-1">
-                  <Bug size={12} /> Waiting for all hackers to agree on a target…
-                </div>
-              ) : alreadyInjected ? (
+              {alreadyInjected ? (
                 <div className="text-xs p-3 rounded border bg-red-900/20 border-red-500/30 text-red-400">
-                  <span className="flex items-center gap-1"><CheckCircle size={12} /> Injection complete! Your team has corrupted <span className="font-bold">{hackerVoteStatus.agreedTargetName}</span>'s code.</span>
+                  <span className="flex items-center gap-1"><CheckCircle size={12} /> Injection complete! Code has been corrupted.</span>
                   {hackerInjectResult && (
                     <p className="mt-1 text-[10px] flex items-center gap-1"><Syringe size={10} /> {hackerInjectResult.desc} in <span className="font-mono">{hackerInjectResult.fileName}</span></p>
                   )}
                 </div>
               ) : (
                 <>
-                  <div className="p-2 rounded border bg-red-900/10 border-red-500/20">
-                    <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold mb-1 flex items-center gap-1">
-                      <Syringe size={10} /> Vote on Corruption for {hackerVoteStatus.agreedTargetName}
-                    </p>
-                    <p className="text-[9px] text-gray-500">
-                      All hackers must agree on the same injection. Browse the target's code above, then vote below.
-                    </p>
-                  </div>
-
                   {/* Inject vote status */}
                   {hackerInjectVoteStatus && (
                     <div className={`text-xs p-2 rounded border ${
@@ -367,38 +406,6 @@ export default function CodeBrowser({
                       )}
                     </div>
                   )}
-
-                  {/* Show injection options per file */}
-                  <button
-                    onClick={() => setShowInjectPanel(!showInjectPanel)}
-                    className="text-[10px] text-gray-500 hover:text-gray-300 px-1"
-                  >
-                    {showInjectPanel ? '▲ Hide Injection Options' : '▼ Show Injection Options'}
-                  </button>
-
-                  {showInjectPanel && (
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {injectionOptions.length === 0 ? (
-                        <p className="text-xs text-gray-500 p-2">No injection options available for this target.</p>
-                      ) : (
-                        injectionOptions.map((opt) => (
-                          <div key={opt.fileIdx} className="space-y-0.5">
-                            <p className="text-[9px] text-gray-500 font-mono px-1 flex items-center gap-1"><File size={10} /> {opt.fileName}:</p>
-                            {opt.patches.map((patch, i) => (
-                              <button
-                                key={i}
-                                onClick={() => onHackerInjectVote?.(opt.fileIdx, patch.patchIdx)}
-                                className="w-full text-left text-xs px-3 py-1.5 rounded border border-red-500/20 bg-red-900/10 text-red-300 hover:bg-red-900/30 hover:border-red-500/40 transition-all flex items-center gap-2"
-                              >
-                                <span className="text-red-500"><Zap size={12} /></span>
-                                <span>{patch.desc}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -419,7 +426,7 @@ export default function CodeBrowser({
               )}
               {adminScanResult && adminScanResult.targetId === selectedPlayerId && adminScanResult.corrupted && (
                 <div className="text-xs p-2 rounded border bg-red-900/10 border-red-500/20 text-red-400">
-                  <AlertTriangle size={12} className="inline mr-1" /> Corrupted file: <span className="font-mono">{adminScanResult.fileName}</span> — use the repair options in the panel above.
+                  <AlertTriangle size={12} className="inline mr-1" /> Corrupted code detected — use the correction options at the bottom.
                 </div>
               )}
             </div>
@@ -430,7 +437,7 @@ export default function CodeBrowser({
             <div className="space-y-2">
               <div className="p-2 rounded border bg-yellow-900/10 border-yellow-500/20">
                 <p className="text-[10px] uppercase tracking-wider text-cyber-yellow font-bold flex items-center gap-1">
-                  <Search size={10} /> Reviewing {viewableCode[selectedPlayerId]?.playerName || 'player'}'s code
+                  <Search size={10} /> Reviewing {displayedCode[effectiveSelectedPlayerId]?.playerName || 'player'}'s code
                 </p>
                 <p className="text-[9px] text-gray-500 mt-1">
                   Look for suspicious function names like <span className="font-mono text-red-400">exploit_buffer</span>,
@@ -461,19 +468,16 @@ export default function CodeBrowser({
           )}
 
           {/* Code display — gated for admin: hidden when scan says clean */}
-          {(myRole === ROLES.ADMIN && isSunrise && selectedPlayerId !== myId &&
-            adminScanResult && adminScanResult.targetId === selectedPlayerId && !adminScanResult.corrupted)
+          {(myRole === ROLES.ADMIN && isSunrise && effectiveSelectedPlayerId !== myId &&
+            adminScanResult && adminScanResult.targetId === effectiveSelectedPlayerId && !adminScanResult.corrupted)
             ? null
-            : (myRole === ROLES.HACKER && isNight && !hackerVoteStatus?.agreed)
-              ? (
-                <div className="p-3 text-xs text-gray-400">Waiting for hackers to agree on a target to view code.</div>
-              )
-              : selectedPlayer ? (
+            : selectedPlayer ? (
                 <>
                   {/* If only one file (developer), show the filename centered under the title. Otherwise show tabs. */}
                   {selectedPlayer.files.length === 1 ? (
                     <div className="flex justify-center">
-                      <div className="mt-1 mb-1 px-3 py-1 bg-cyber-darker rounded text-[12px] font-mono text-gray-200">
+                      <div className="mt-1 mb-1 px-4 py-1.5 bg-cyber-darker rounded-md text-[12px] font-mono text-gray-200 border border-cyber-border flex items-center gap-2 shadow-sm">
+                        <File size={13} className="text-cyber-blue" />
                         {selectedPlayer.files[0]?.name}
                       </div>
                     </div>
@@ -502,17 +506,50 @@ export default function CodeBrowser({
 
                   {/* Code display */}
                   <div className="flex-1 overflow-auto bg-[#0d1117] rounded border border-gray-800 min-h-0">
-                    <div className="p-0 font-mono text-xs leading-5 whitespace-pre overflow-x-auto">
+                    <div className="p-0 font-mono text-[10px] leading-5 whitespace-pre-wrap break-all">
                       {selectedFile && renderCode(selectedFile.code)}
                     </div>
                   </div>
+
+                  {/* ═══ Hacker: Injection options below the code ═══ */}
+                  {myRole === ROLES.HACKER && isNight && selectedPlayerId !== myId && !alreadyInjected && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => setShowInjectPanel(!showInjectPanel)}
+                        className="w-full text-center text-[12px] font-bold text-red-400 hover:text-red-300 px-3 py-2.5 rounded-lg bg-red-900/15 border-2 border-red-500/30 hover:border-red-500/50 hover:bg-red-900/25 flex items-center justify-center gap-2 transition-all shadow-md"
+                      >
+                        <Syringe size={14} />
+                        {showInjectPanel ? '▲ Hide Injection Options' : `▼ Show Injection Options (${injectionOptions.reduce((sum, o) => sum + o.patches.length, 0)} bugs available)`}
+                      </button>
+
+                      {showInjectPanel && (
+                        <div className="mt-2 space-y-1.5 p-2">
+                          {injectionOptions.length === 0 ? (
+                            <p className="text-xs text-gray-500 p-3 text-center">No injection options available for this player's code.</p>
+                          ) : (
+                            injectionOptions.flatMap((opt) =>
+                              opt.patches.map((patch, i) => (
+                                <button
+                                  key={`${opt.fileIdx}-${i}`}
+                                  onClick={() => onHackerInjectVote?.(opt.fileIdx, patch.patchIdx)}
+                                  className="w-full text-left text-xs px-3 py-2.5 rounded-lg border border-red-500/25 bg-red-900/10 text-red-300 hover:bg-red-900/30 hover:border-red-500/50 transition-all flex items-center gap-2 shadow-sm"
+                                >
+                                  <span className="text-red-500 flex-shrink-0"><Zap size={14} /></span>
+                                  <span>{patch.desc}</span>
+                                </button>
+                              ))
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-gray-500 text-center py-4">No code to display.</p>
               )
           }
         </div>
-      )}
     </div>
   );
 }

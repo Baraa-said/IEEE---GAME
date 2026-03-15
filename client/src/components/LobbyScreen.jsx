@@ -103,15 +103,23 @@ export default function LobbyScreen({
             </p>
           )}
 
+          {/* Max-player warning */}
+          {gameState.players.length >= (gameState.maxPlayers || 10) && (
+            <p className="text-center text-cyber-red text-xs mb-4">
+              <AlertTriangle size={14} className="inline-block mr-1" /> Room is full ({gameState.maxPlayers || 10}/{gameState.maxPlayers || 10})
+            </p>
+          )}
+
           {/* Start button (host only) */}
           {isHost && (
             <>
               <button
                 onClick={() => onFillBots?.(6)}
                 className="cyber-btn-blue w-full text-center mb-2"
-                title="Populate the lobby with 6 random bot players (testing)"
+                disabled={gameState.players.length >= (gameState.maxPlayers || 10)}
+                title="Populate the lobby with bot players (up to max)"
               >
-                <Bot size={14} className="inline-block mr-1" /> Fill 6 Bots
+                <Bot size={14} className="inline-block mr-1" /> Fill Bots
               </button>
 
               <button

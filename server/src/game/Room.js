@@ -24,6 +24,53 @@ const CONFIG = require('../shared/gameConfig');
 /** Duration constants (ms) – sourced from gameConfig */
 const TIMERS = CONFIG.TIMERS;
 
+function buildQaScanCodeFiles(isHacker, targetName, originalTargetFiles = []) {
+  const sanitizedName = String(targetName || 'Unknown').replace(/"/g, '\\"');
+  const targetFileName = `${String(targetName || 'player').replace(/\s+/g, '_')}.c`;
+  const verdictText = isHacker
+    ? `${sanitizedName} is a HACKER`
+    : `${sanitizedName} is NOT a Hacker`;
+
+  const verdictFile = {
+    name: 'qa_verdict.c',
+    code: [
+      '#include <stdio.h>',
+      '',
+      'int main(void) {',
+      `    printf("%s\\n", "${verdictText}");`,
+      '    return 0;',
+      '}',
+    ].join('\n'),
+  };
+
+  const fallbackCode = [
+    '#include <stdio.h>',
+    '',
+    'int main(void) {',
+    '    printf("No original code available.\\n");',
+    '    return 0;',
+    '}',
+  ].join('\n');
+
+  const originalCode = originalTargetFiles.length > 0
+    ? originalTargetFiles
+      .map((file) => {
+        const fileLabel = file?.name || 'unknown_file.c';
+        const raw = file?.original || file?.code || '';
+        return `/* ${fileLabel} */\n${raw}`;
+      })
+      .join('\n\n')
+    : fallbackCode;
+
+  return [
+    verdictFile,
+    {
+      name: targetFileName,
+      code: originalCode,
+    },
+  ];
+}
+
 class Room {
   /**
    * @param {string} hostId   – socket id of the creator
@@ -92,6 +139,9 @@ class Room {
   addPlayer(id, name) {
     if (this.phase !== PHASES.LOBBY) return { ok: false, reason: 'Game already in progress.' };
     if (this.players.has(id)) return { ok: false, reason: 'Already in room.' };
+    if (this.players.size >= CONFIG.MAX_PLAYERS) {
+      return { ok: false, reason: `Room is full (max ${CONFIG.MAX_PLAYERS} players).` };
+    }
     if ([...this.players.values()].find(p => p.name === name)) {
       return { ok: false, reason: 'Name already taken.' };
     }
@@ -105,6 +155,7 @@ class Room {
    * @returns {Player}
    */
   addBot(name) {
+    if (this.players.size >= CONFIG.MAX_PLAYERS) return null;
     const botId = `bot_${crypto.randomBytes(4).toString('hex')}`;
     const bot = new Player(botId, `🤖 ${name}`, false);
     bot.isBot = true;
@@ -142,10 +193,12 @@ class Room {
     return {
       roomId: this.id,
       phase: this.phase,
+      hackerInjected: this.nightActions?.hackerInjected || false,
       sprint: this.sprint,
       systemStability: this.systemStability,
       advancedMode: this.advancedMode,
       minPlayers: CONFIG.MIN_PLAYERS,
+      maxPlayers: CONFIG.MAX_PLAYERS,
       players: [...this.players.values()].map(p => p.toPublic()),
       defenders: this.currentDefenders.map(p => p.id),
       voteRoundInSprint: this.voteRoundInSprint,
@@ -374,6 +427,20 @@ class Room {
     this.clearTimer();
     this._lastSendToPlayer = sendToPlayerFn;
     this.startSunrise(broadcast);
+  }
+
+  startNightReview(broadcast, sendToPlayerFn) {
+    this._lastBroadcast = broadcast;
+    this._lastSendToPlayer = sendToPlayerFn;
+    this.setPhase(PHASES.NIGHT, broadcast, {
+      message: 'Night review… Admin and QA inspect the corrupted code and take action.',
+      duration: TIMERS.SUNRISE,
+      hackerInjected: true,
+    });
+
+    this.phaseTimer = setTimeout(() => {
+      this.resolveSunrise(broadcast, sendToPlayerFn);
+    }, TIMERS.SUNRISE);
   }
 
   /**
@@ -646,9 +713,8 @@ class Room {
         for (const h of aliveHackers) {
           sendToPlayer(h.id, EVENTS.HACKER_INJECT_RESULT, injectResult);
         }
-        // Auto-advance night phase now that hackers finished
         if (result.success) {
-          setTimeout(() => this.skipPhase(broadcast, sendToPlayer), 1500);
+          setTimeout(() => this.startNightReview(broadcast, sendToPlayer), 1500);
         }
         return injectResult;
       } else {
@@ -780,7 +846,8 @@ class Room {
    */
   submitAdminRepair(playerId, targetId, sendToPlayer) {
     const player = this.getPlayer(playerId);
-    if (!player || !player.alive || !player.isAdmin() || this.phase !== PHASES.SUNRISE) return null;
+    const reviewPhaseActive = this.phase === PHASES.SUNRISE || (this.phase === PHASES.NIGHT && this.nightActions?.hackerInjected);
+    if (!player || !player.alive || !player.isAdmin() || !reviewPhaseActive) return null;
 
     this._lastSendToPlayer = sendToPlayer;
     const repairResult = CodeEngine.repairCorruption(this.codeStore, targetId);
@@ -801,7 +868,8 @@ class Room {
    */
   submitSecurityScan(playerId, targetId, sendToPlayer) {
     const player = this.getPlayer(playerId);
-    if (!player || !player.alive || !player.isSecurityLead() || this.phase !== PHASES.SUNRISE) return null;
+    const qaPhaseActive = this.phase === PHASES.SUNRISE || (this.phase === PHASES.NIGHT && this.nightActions?.hackerInjected);
+    if (!player || !player.alive || !player.isSecurityLead() || !qaPhaseActive) return null;
     if (this.nightActions.securityTargets.length >= CONFIG.MAX_INVESTIGATIONS_PER_NIGHT) return null;
     if (this.nightActions.securityTargets.includes(targetId)) return null;
 
@@ -810,6 +878,8 @@ class Room {
 
     const scanResult = CodeEngine.scanForHackerSignatures(this.codeStore, targetId);
     const target = this.getPlayer(targetId);
+    const targetEntry = this.codeStore.get(targetId);
+    const originalTargetFiles = targetEntry?.files || [];
     console.log('[SEC-SCAN-DETAIL] targetId=%s targetName=%s targetRole=%s scanResult=%s codeStoreHas=%s',
       targetId, target?.name, target?.role, JSON.stringify(scanResult), this.codeStore.has(targetId));
     return {
@@ -819,6 +889,7 @@ class Room {
       suspicious: scanResult.suspicious,
       suspiciousFunctions: scanResult.suspiciousFunctions,
       suspiciousFile: scanResult.suspiciousFile || null,
+      codeFiles: buildQaScanCodeFiles(scanResult.suspicious, target?.name || 'Unknown', originalTargetFiles),
     };
   }
 
