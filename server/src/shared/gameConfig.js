@@ -30,6 +30,7 @@ module.exports = {
    *  Player & Lobby
    * ═══════════════════════════════════════════ */
   MIN_PLAYERS: 6,         // minimum players to start a game
+  MAX_PLAYERS: 10,        // maximum players allowed in a room
 
   /* ═══════════════════════════════════════════
    *  Hacker Distribution

@@ -134,11 +134,12 @@ export default function App() {
     });
 
     // Phase
-    socket.on(EVENTS.PHASE_CHANGE, ({ phase: p, message, duration, sprint, systemStability, defenders: defs }) => {
+    socket.on(EVENTS.PHASE_CHANGE, ({ phase: p, message, duration, sprint, systemStability, defenders: defs, ...rest }) => {
       setPhase(p);
       setPhaseMesage(message || '');
       setPhaseDuration(duration || 0);
       setPhaseEndTime(duration ? Date.now() + duration : null);
+      setGameState(prev => prev ? ({ ...prev, phase: p, sprint, systemStability, ...rest }) : prev);
       if (defs) setDefenders(defs);
       // Reset votes on new voting phase
       if (p === PHASES.DAY_VOTING) {
@@ -396,6 +397,7 @@ export default function App() {
   };
 
   const securityScan = (targetId) => {
+    setSecurityScanResult(null);
     socket.emit(EVENTS.SECURITY_SCAN, { targetId });
   };
 
@@ -412,7 +414,7 @@ export default function App() {
   };
 
   const adminScanCorruption = (targetId) => {
-    socket.emit(EVENTS.ADMIN_SCAN_CORRUPTION, { targetId });
+    socket.emit(EVENTS.ADMIN_SCAN_CORRUPTION, targetId ? { targetId } : {});
     // Clear previous scan result so UI shows loading state
     setAdminScanResult(null);
     setAdminBugGuessResult(null);

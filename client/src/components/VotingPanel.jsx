@@ -46,7 +46,7 @@ export default function VotingPanel({
         </p>
       ) : (
         <>
-          <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
+          <div className="space-y-1.5 mb-3">
             {targets.map((p, i) => {
               const votes = voteTally?.[p.id] || 0;
               const isSelected = selectedTarget === p.id;
@@ -92,7 +92,7 @@ export default function VotingPanel({
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">
             Who Voted for Whom
           </p>
-          <div className="space-y-0.5 max-h-32 overflow-y-auto">
+          <div className="space-y-0.5">
             {Object.entries(individualVotes).map(([voterId, { voterName, targetName }]) => (
               <div key={voterId} className="text-xs flex items-center gap-1">
                 <span className={`font-semibold ${voterId === myId ? 'text-cyber-green' : 'text-cyber-blue'}`}>

@@ -25,12 +25,10 @@ class RoleEngine {
 
   /**
    * Determine how many hackers for the given player count.
+   * Always exactly 2 hackers regardless of player count.
    */
   static hackerCount(playerCount) {
-    for (const tier of CONFIG.HACKER_TIERS) {
-      if (playerCount <= tier.maxPlayers) return tier.hackers;
-    }
-    return Math.floor(playerCount * CONFIG.DEFAULT_HACKER_RATIO);
+    return 2;
   }
 
   /**

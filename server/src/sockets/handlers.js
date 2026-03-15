@@ -80,7 +80,7 @@ function registerHandlers(io, socket) {
     const current = room.players.size;
     const target  = Math.max(current, CONFIG.MIN_PLAYERS);
     const need    = Math.max(0, target - current);
-    const toAdd   = Math.min(typeof count === 'number' ? count : need, 12 - current);
+    const toAdd   = Math.min(typeof count === 'number' ? count : need, CONFIG.MAX_PLAYERS - current);
     if (toAdd <= 0) return;
 
     // Bot name pool: avoid duplicates with existing player names
@@ -248,7 +248,8 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.FINISH_SUNRISE, () => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || room.phase !== PHASES.SUNRISE) return;
+    const reviewPhaseActive = room && (room.phase === PHASES.SUNRISE || (room.phase === PHASES.NIGHT && room.nightActions?.hackerInjected));
+    if (!room || !reviewPhaseActive) return;
     const player = room.getPlayer(socket.id);
     if (!player || !player.alive) return;
     if (player.role !== ROLES.ADMIN && player.role !== ROLES.SECURITY_LEAD) return;
@@ -265,10 +266,17 @@ function registerHandlers(io, socket) {
 
     const allDone = [...needed].every(r => room.sunriseDone.has(r));
     if (allDone) {
-      room.skipPhase(
-        (event, data) => broadcastToRoom(room.id, event, data),
-        (playerId, event, data) => io.to(playerId).emit(event, data)
-      );
+      if (room.phase === PHASES.NIGHT) {
+        room.resolveSunrise(
+          (event, data) => broadcastToRoom(room.id, event, data),
+          (playerId, event, data) => io.to(playerId).emit(event, data)
+        );
+      } else {
+        room.skipPhase(
+          (event, data) => broadcastToRoom(room.id, event, data),
+          (playerId, event, data) => io.to(playerId).emit(event, data)
+        );
+      }
     }
   });
 
@@ -368,6 +376,7 @@ function registerHandlers(io, socket) {
 
     const isNight = room.phase === PHASES.NIGHT;
     const isSunrise = room.phase === PHASES.SUNRISE;
+    const isNightReview = isNight && room.nightActions?.hackerInjected;
     const isNightOrSunrise = isNight || isSunrise;
     const isHacker = player.isHacker();
     const isAdmin = player.isAdmin();
@@ -378,19 +387,19 @@ function registerHandlers(io, socket) {
       socket.emit(EVENTS.ERROR, { message: 'You can only view your own code during the day.' });
       return;
     }
-    // During NIGHT: only hackers can view other players' code
-    if (isNight && targetId !== socket.id && !isHacker) {
+    // During NIGHT before review: only hackers can view other players' code
+    if (isNight && !isNightReview && targetId !== socket.id && !isHacker) {
       socket.emit(EVENTS.ERROR, { message: 'Only hackers can browse code during the night.' });
       return;
     }
-    // During SUNRISE: only admin and QA can view other players' code
-    if (isSunrise && targetId !== socket.id && !isAdmin && !isSecurityLead) {
-      socket.emit(EVENTS.ERROR, { message: 'Only Admin and QA can browse code at sunrise.' });
+    // During review: only admin and QA can view other players' code
+    if ((isSunrise || isNightReview) && targetId !== socket.id && !isAdmin && !isSecurityLead) {
+      socket.emit(EVENTS.ERROR, { message: 'Only Admin and QA can browse code during review.' });
       return;
     }
 
-    // Check view limits for admin and QA (during sunrise)
-    if (isSunrise && targetId !== socket.id && (isAdmin || isSecurityLead)) {
+    // Check view limits for admin and QA during review
+    if ((isSunrise || isNightReview) && targetId !== socket.id && (isAdmin || isSecurityLead)) {
       const allowed = room.trackCodeView(socket.id, targetId);
       if (!allowed) {
         const limit = isAdmin ? CONFIG.ADMIN_CHECKS_PER_NIGHT : CONFIG.SECURITY_VIEWS_PER_NIGHT;
@@ -406,6 +415,7 @@ function registerHandlers(io, socket) {
       if (isHacker && targetId !== socket.id) {
         response.injectionOptions = CodeEngine.getInjectionOptions(room.codeStore, targetId);
         response.alreadyInjected = room.nightActions.hackerInjected || false;
+        console.log('[HANDLER] Hacker browsing', targetId, '- injectionOptions:', response.injectionOptions?.length, 'items');
       }
       // Include view counts so clients know remaining views
       if (isAdmin) {
@@ -467,25 +477,33 @@ function registerHandlers(io, socket) {
    *  Only during SUNRISE. Returns corruption details—or a "clean" response.
    *  If corrupted, sends the player's full code so admin can inspect it.
    * ────────────────────────────────────────── */
-  socket.on(EVENTS.ADMIN_SCAN_CORRUPTION, ({ targetId }) => {
+  socket.on(EVENTS.ADMIN_SCAN_CORRUPTION, (payload = {}) => {
+    const { targetId } = payload;
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+    const reviewPhaseActive = room && (room.phase === PHASES.SUNRISE || (room.phase === PHASES.NIGHT && room.nightActions?.hackerInjected));
+    if (!room || !room.codeStore || !reviewPhaseActive) return;
 
     const player = room.getPlayer(socket.id);
     if (!player || !player.alive || !player.isAdmin()) return;
 
+    const effectiveTargetId = room.nightActions?.hackerTarget || targetId;
+    if (!effectiveTargetId) {
+      socket.emit(EVENTS.ERROR, { message: 'No hacked target is available to review yet.' });
+      return;
+    }
+
     // Track view limit — admin can only scan ADMIN_CHECKS_PER_NIGHT different players
-    const canView = room.trackCodeView(socket.id, targetId);
+    const canView = room.trackCodeView(socket.id, effectiveTargetId);
     if (!canView) {
       const limit = CONFIG.ADMIN_CHECKS_PER_NIGHT;
       socket.emit(EVENTS.ERROR, { message: `You can only scan ${limit} players' code per round.` });
       return;
     }
 
-    const details = CodeEngine.getCorruptionDetails(room.codeStore, targetId);
-    const target = room.getPlayer(targetId);
+    const details = CodeEngine.getCorruptionDetails(room.codeStore, effectiveTargetId);
+    const target = room.getPlayer(effectiveTargetId);
     socket.emit(EVENTS.ADMIN_SCAN_RESULT, {
-      targetId,
+      targetId: effectiveTargetId,
       targetName: target?.name || details.playerName || 'Unknown',
       ...details,
     });
@@ -519,7 +537,8 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.ADMIN_REPAIR, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) return;
+    const reviewPhaseActive = room && (room.phase === PHASES.SUNRISE || (room.phase === PHASES.NIGHT && room.nightActions?.hackerInjected));
+    if (!room || !room.codeStore || !reviewPhaseActive) return;
 
     const result = room.submitAdminRepair(socket.id, targetId, sendToPlayerFn);
     if (result) {
@@ -539,7 +558,8 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.SECURITY_SCAN, ({ targetId }) => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== PHASES.SUNRISE) {
+    const qaPhaseActive = room && (room.phase === PHASES.SUNRISE || (room.phase === PHASES.NIGHT && room.nightActions?.hackerInjected));
+    if (!room || !room.codeStore || !qaPhaseActive) {
       console.log('[SEC-SCAN] Blocked: room=%s codeStore=%s phase=%s', !!room, !!(room && room.codeStore), room?.phase);
       return;
     }

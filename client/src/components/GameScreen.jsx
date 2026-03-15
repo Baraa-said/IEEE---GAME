@@ -71,18 +71,46 @@ export default function GameScreen({
   const [adminProtectChoice, setAdminProtectChoice] = React.useState(null);
   const [adminCodeExpanded, setAdminCodeExpanded] = React.useState(false);
   const [adminFileGuessIdx, setAdminFileGuessIdx] = React.useState(null);
+  const adminLastScanAtRef = React.useRef(0);
 
   // Reset admin guess state when scan target changes
   React.useEffect(() => {
     setAdminFileGuessIdx(null);
   }, [adminScanResult?.targetId]);
 
+  React.useEffect(() => {
+    adminLastScanAtRef.current = 0;
+  }, [phase, gameState?.hackerInjected]);
+
   const isNight = phase === PHASES.NIGHT;
   const isSunrise = phase === PHASES.SUNRISE;
+  const isNightReview = isNight && !!gameState?.hackerInjected;
   const isVoting = phase === PHASES.DAY_VOTING;
   const isDefense = phase === PHASES.DAY_DEFENSE;
   const isDay = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
   const isHacker = myRole === ROLES.HACKER;
+
+  React.useEffect(() => {
+    const canAutoScan =
+      (isSunrise || isNightReview) &&
+      myRole === ROLES.ADMIN &&
+      amAlive &&
+      !!gameState?.hackerInjected &&
+      !adminScanResult &&
+      Date.now() - adminLastScanAtRef.current > 1200;
+
+    if (!canAutoScan) return;
+    adminLastScanAtRef.current = Date.now();
+    onAdminScanCorruption();
+  }, [
+    amAlive,
+    myRole,
+    isSunrise,
+    isNightReview,
+    gameState?.hackerInjected,
+    adminScanResult,
+    onAdminScanCorruption,
+  ]);
 
   // Get role-specific theme
   const theme = getTheme(myRole);
@@ -228,7 +256,7 @@ export default function GameScreen({
             </div>
           )}
 
-          {isNight && (
+          {isNight && !isNightReview && (
             <NightPanel
               myRole={myRole}
               myId={myId}
@@ -241,93 +269,57 @@ export default function GameScreen({
             />
           )}
 
-          {isSunrise && (
+          {(isSunrise || isNightReview) && (
             <div className="space-y-3 animate-slide-up mb-6">
-              {/* Admin sunrise panel */}
+              {/* Admin review panel */}
               {myRole === ROLES.ADMIN && amAlive && (
                 <div className="space-y-3">
 
-                  {/* STEP 1: Scan a player for corruption */}
                   <div className="cyber-card border-blue-500/30 bg-blue-900/10">
                     <h3 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2 flex items-center gap-1.5">
-                      <Search size={14} /> Step 1 — Scan for Corruption
+                      <Search size={14} /> Admin Review
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">Choose a player to scan their code for hacker injections:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {alivePlayers.filter(p => p.id !== myId).map((p, idx) => {
-                        const isScanned = adminScanResult?.targetId === p.id;
-                        const isCorrupted = isScanned && adminScanResult?.corrupted;
-                        const isClean = isScanned && !adminScanResult?.corrupted;
-                        return (
-                          <button
-                            key={p.id}
-                            onClick={() => { onAdminScanCorruption(p.id); setAdminCodeExpanded(false); setAdminFileGuessIdx(null); }}
-                            disabled={adminBugGuessResult != null}
-                            className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all hover:scale-105 animate-slide-up ${
-                              isCorrupted ? 'border-red-500 bg-red-900/30 text-red-200 shadow-lg shadow-red-900/30'
-                              : isClean ? 'border-green-500/60 bg-green-900/20 text-green-300'
-                              : 'border-blue-500/30 bg-blue-900/20 text-blue-300 hover:bg-blue-700/30 hover:border-blue-400/50'
-                            } ${adminBugGuessResult ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            style={{ animationDelay: `${idx * 60}ms`, animationFillMode: 'both' }}
-                          >
-                            <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.name)}`} alt={p.name} className={`w-12 h-12 rounded-full bg-black/40 border-2 ${isCorrupted ? 'border-red-500' : isClean ? 'border-green-400' : 'border-blue-600/30'}`} />
-                            <span className="font-semibold text-sm">{p.name}</span>
-                            {isCorrupted && <span className="text-[10px] text-red-400 animate-pulse flex items-center gap-1"><AlertTriangle size={10} /> Corrupted!</span>}
-                            {isClean && <span className="text-[10px] text-green-400 flex items-center gap-1"><CheckCircle size={10} /> Clean</span>}
-                            {!isScanned && <span className="text-[10px] text-blue-400/60 flex items-center gap-1"><Search size={10} /> Scan</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <p className="text-sm text-gray-300">
+                      If you want to save the developer, fix the attack.
+                    </p>
                   </div>
 
-                  {/* Clean scan result */}
-                  {adminScanResult && !adminScanResult.corrupted && (
-                    <div className="p-2 rounded border border-green-500/30 bg-green-900/10 text-green-400 text-xs text-center animate-fade-in">
-                      <CheckCircle size={12} className="inline mr-1" /> {adminScanResult.targetName}'s code is clean — no corruption found. Your task stops here.
+                  {!adminScanResult && (isSunrise || isNightReview) && (
+                    <div className="p-2 rounded border border-blue-500/30 bg-blue-900/10 text-blue-300 text-xs text-center animate-fade-in space-y-2">
+                      <div>
+                        <Search size={12} className="inline mr-1" /> Loading attacked code...
+                      </div>
+                      <button
+                        onClick={() => onAdminScanCorruption()}
+                        className="px-3 py-1 rounded border border-blue-400/40 bg-blue-900/30 text-blue-200 hover:bg-blue-800/40 transition-all"
+                      >
+                        Show Attacked Code
+                      </button>
                     </div>
                   )}
 
-                  {/* STEP 2: Corruption found — show files, pick which one has the bug */}
-                  {adminScanResult?.corrupted && !adminBugGuessResult && (
+                  {adminScanResult && !adminScanResult.corrupted && (
+                    <div className="p-2 rounded border border-green-500/30 bg-green-900/10 text-green-400 text-xs text-center animate-fade-in">
+                      <CheckCircle size={12} className="inline mr-1" /> No active attack was found for this round.
+                    </div>
+                  )}
+
+                  {adminScanResult?.corrupted && (
                     <div className="cyber-card border-red-500/40 bg-red-900/10 animate-slide-up space-y-3">
                       <div>
                         <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold flex items-center gap-1.5">
-                          <AlertTriangle size={14} /> Step 2 — Find the Bug!
+                          <AlertTriangle size={14} /> Step 2 — Review Corrupted Code
                         </h3>
                         <p className="text-[11px] text-gray-400 mt-1">
-                          <span className="text-red-300 font-semibold">{adminScanResult.targetName}</span>'s code is corrupted!
-                          Review their files below and choose which file contains the bug.
-                        </p>
-                        <p className="text-[10px] text-yellow-400/90 mt-1 font-bold flex items-center gap-1">
-                          <AlertTriangle size={10} /> You only get ONE guess! Correct → protect the player. Wrong → the player dies.
+                          If you want to save the developer, correct the following code.
                         </p>
                       </div>
 
-                      {/* Show all files for inspection */}
                       {adminScanResult.files?.length > 0 && (
                         <div className="space-y-2">
                           {adminScanResult.files.map((file, fIdx) => (
-                            <div key={fIdx} className={`rounded border overflow-hidden transition-all ${
-                              adminFileGuessIdx === fIdx
-                                ? 'border-yellow-500/60 bg-yellow-900/10 shadow-lg shadow-yellow-900/20'
-                                : 'border-gray-700/50 bg-[#0d1117]'
-                            }`}>
-                              <button
-                                onClick={() => setAdminFileGuessIdx(fIdx)}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover:bg-white/5 ${
-                                  adminFileGuessIdx === fIdx ? 'bg-yellow-900/20' : ''
-                                }`}
-                              >
-                                <span className="text-sm"><File size={14} /></span>
-                                <span className="text-[11px] font-mono text-gray-300 flex-1">{file.name}</span>
-                                {adminFileGuessIdx === fIdx
-                                  ? <span className="text-[10px] text-yellow-400 font-bold animate-pulse flex items-center gap-1"><Crosshair size={10} /> Selected</span>
-                                  : <span className="text-[10px] text-gray-500">Click to select</span>
-                                }
-                              </button>
-                              {/* Inline code preview */}
-                              <div className="font-mono text-[10px] leading-4 whitespace-pre overflow-auto max-h-36 px-2 pb-2 border-t border-gray-700/30">
+                            <div key={fIdx} className="rounded border overflow-hidden transition-all border-gray-700/50 bg-[#0d1117]">
+                              <div className="font-mono text-[10px] leading-4 whitespace-pre overflow-auto max-h-36 px-2 py-2 border-gray-700/30">
                                 {file.code?.split('\n').map((line, i) => (
                                   <div key={i} className="flex hover:bg-white/5">
                                     <span className="select-none text-gray-600 text-right pr-2 pl-1 min-w-[2rem] border-r border-gray-700/30 text-[9px]">{i + 1}</span>
@@ -340,60 +332,50 @@ export default function GameScreen({
                         </div>
                       )}
 
-                      {/* Submit guess button */}
-                      <button
-                        onClick={() => { if (adminFileGuessIdx !== null) onAdminBugGuess(adminScanResult.targetId, adminFileGuessIdx); }}
-                        disabled={adminFileGuessIdx === null}
-                        className={`w-full py-3 rounded-lg border-2 font-bold text-sm transition-all ${
-                          adminFileGuessIdx !== null
-                            ? 'border-yellow-500/60 bg-yellow-900/30 text-yellow-300 hover:bg-yellow-700/50 hover:border-yellow-300 hover:scale-[1.02]'
-                            : 'border-gray-600/30 bg-gray-800/30 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        <Crosshair size={14} className="inline-block mr-1" /> Submit Guess — This File Has the Bug
-                      </button>
+                      <div className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-wider text-green-300/80 font-bold">Correction options</p>
+                        {(adminScanResult.repairOptions || []).flatMap((option) =>
+                          (option.fixes || []).map((fix, idx) => (
+                            <button
+                              key={`${option.fileIdx}-${idx}`}
+                              onClick={() => onAdminRepair(adminScanResult.targetId)}
+                              className="w-full py-3 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/30 text-green-300 hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02]"
+                            >
+                              <CheckCircle size={14} className="inline-block mr-1" /> Correction Option — {fix.desc}
+                            </button>
+                          ))
+                        )}
+
+                        {(!adminScanResult.repairOptions || adminScanResult.repairOptions.length === 0) && (
+                          <button
+                            onClick={() => onAdminRepair(adminScanResult.targetId)}
+                            className="w-full py-3 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/30 text-green-300 hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02]"
+                          >
+                            <CheckCircle size={14} className="inline-block mr-1" /> Repair Code
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* STEP 3: Bug guess result */}
-                  {adminBugGuessResult && (
+                  {adminRepairResult && (
                     <div className={`cyber-card animate-slide-up space-y-2 ${
-                      adminBugGuessResult.correct
+                      adminRepairResult.repaired
                         ? 'border-green-500/40 bg-green-900/10'
-                        : 'border-red-500/40 bg-red-900/10'
+                        : 'border-yellow-500/40 bg-yellow-900/10'
                     }`}>
-                      {adminBugGuessResult.correct ? (
-                        <>
-                          <h3 className="text-xs uppercase tracking-wider text-green-400 font-bold flex items-center gap-1.5">
-                            <CheckCircle size={14} /> Correct! Player Protected
-                          </h3>
-                          <p className="text-sm text-green-300">
-                            You correctly identified <span className="font-mono font-bold">{adminBugGuessResult.actualFileName}</span> as the corrupted file.
-                            <span className="font-semibold"> {adminBugGuessResult.targetName}</span> is now protected from tonight's hacker attack!
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold flex items-center gap-1.5">
-                            <XCircle size={14} /> Wrong File! Player Eliminated
-                          </h3>
-                          <p className="text-sm text-red-300">
-                            You chose <span className="font-mono font-bold">{adminBugGuessResult.guessedFileName}</span> but the bug was in{' '}
-                            <span className="font-mono font-bold">{adminBugGuessResult.actualFileName}</span>.
-                            <span className="font-semibold"> {adminBugGuessResult.targetName}</span> will be eliminated.
-                          </p>
-                        </>
-                      )}
+                      <h3 className={`text-xs uppercase tracking-wider font-bold flex items-center gap-1.5 ${
+                        adminRepairResult.repaired ? 'text-green-400' : 'text-yellow-400'
+                      }`}>
+                        <CheckCircle size={14} /> Repair Result
+                      </h3>
+                      <p className={`text-sm ${adminRepairResult.repaired ? 'text-green-300' : 'text-yellow-300'}`}>
+                        {adminRepairResult.repaired
+                          ? 'The corrupted code has been repaired successfully.'
+                          : 'No corrupted code was available to repair.'}
+                      </p>
                     </div>
                   )}
-
-                  {/* Finish Sunrise button — Admin */}
-                  <button
-                    onClick={onFinishSunrise}
-                    className="w-full py-3 rounded-lg border border-green-400/50 bg-green-900/30 text-green-300 font-bold text-sm hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02] transition-all animate-bounce-in"
-                  >
-                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Sunrise — I'm Done
-                  </button>
                 </div>
               )}
 
@@ -422,7 +404,7 @@ export default function GameScreen({
                   </div>
                   {/* Scan result */}
                   {securityScanResult && (
-                    <div className={`mt-2 p-3 rounded border text-xs ${
+                    <div className={`mt-2 p-3 rounded border text-xs space-y-3 ${
                       securityScanResult.isHacker
                         ? 'bg-red-900/20 border-red-500/40'
                         : 'bg-green-900/20 border-green-500/30'
@@ -432,13 +414,31 @@ export default function GameScreen({
                       ) : (
                         <p className="text-green-400 font-semibold flex items-center gap-1"><CheckCircle size={12} /> {securityScanResult.targetName} is NOT a Hacker.</p>
                       )}
+
+                      {Array.isArray(securityScanResult.codeFiles) && securityScanResult.codeFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] uppercase tracking-wider text-gray-300 font-bold">
+                            Revealed C Code
+                          </p>
+                          {securityScanResult.codeFiles.map((file, idx) => (
+                            <div key={`${file.name}-${idx}`} className="rounded border border-gray-700/60 bg-[#0d1117] overflow-hidden">
+                              <div className="px-2 py-1 border-b border-gray-700/60 text-[10px] font-mono text-cyan-300">
+                                {file.name}
+                              </div>
+                              <pre className="m-0 p-2 text-[11px] leading-5 text-gray-300 font-mono whitespace-pre-wrap break-words">
+                                {file.code}
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   <button
                     onClick={onFinishSunrise}
                     className="w-full py-3 rounded-lg border border-yellow-400/50 bg-yellow-900/30 text-yellow-300 font-bold text-sm hover:bg-yellow-700/50 hover:border-yellow-300 hover:scale-[1.02] transition-all animate-bounce-in"
                   >
-                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Sunrise — I'm Done
+                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Review — I'm Done
                   </button>
                 </div>
               )}
@@ -447,10 +447,12 @@ export default function GameScreen({
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
                 <div className="cyber-card border-gray-600/30">
                   <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2 flex items-center gap-1.5">
-                    <SunriseIcon size={14} /> Sunrise
+                    <SunriseIcon size={14} /> {isNightReview ? 'Night Review' : 'Sunrise'}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    The Admin and QA are reviewing code... Wait for the day phase.
+                    {isNightReview
+                      ? 'The Admin and QA are reviewing the corrupted code... Wait for the day phase.'
+                      : 'The Admin and QA are reviewing code... Wait for the day phase.'}
                   </p>
                 </div>
               )}
@@ -461,7 +463,9 @@ export default function GameScreen({
                     <Skull size={14} /> Eliminated
                   </h3>
                   <p className="text-sm text-gray-500">
-                    You have been terminated. Observe the sunrise in silence.
+                    {isNightReview
+                      ? 'You have been terminated. Observe the night review in silence.'
+                      : 'You have been terminated. Observe the sunrise in silence.'}
                   </p>
                 </div>
               )}
@@ -480,7 +484,7 @@ export default function GameScreen({
           )}
 
           {/* Code Browser – always visible during game */}
-          {codeFiles && Object.keys(codeFiles).length > 0 && (
+          {!isVoting && !(myRole === ROLES.ADMIN && (isSunrise || isNightReview)) && codeFiles && Object.keys(codeFiles).length > 0 && (
             <div className="mt-4">
               <CodeBrowser
               codeFiles={codeFiles}
@@ -501,6 +505,7 @@ export default function GameScreen({
               securityScanResult={securityScanResult}
               onGetPlayerCode={onGetPlayerCode}
               playerCodeData={playerCodeData}
+              hackerInjected={!!gameState?.hackerInjected}
               fellowHackers={fellowHackers}
               nightResult={nightResult}
               phaseEndTime={phaseEndTime}

@@ -25,359 +25,225 @@ const CONFIG = require('../shared/gameConfig');
 
 const CLEAN_C_FILES = [
   {
-    name: 'math_utils.c',
-    code: `#include <stdio.h>
+    key: 'while_loop',
+    name: 'while_loop.c',
+    desc: 'While Loop',
+    code: `// While Loop
+#include <stdio.h>
 
-/* Returns the factorial of n (iterative). */
-int factorial(int n) {
-    int result = 1;
-    for (int i = 2; i <= n; i++) {
-        result *= i;
+void broadcast_emergency_signal(int *alert_counter, int target_alerts) {
+    while (*alert_counter < target_alerts) {
+        printf("\u{1F6A8} [EMERGENCY]: SYSTEM BREACH DETECTED! BROADCASTING ALERT to IEEE Members...\\n");
+        (*alert_counter)++;
     }
-    return result;
 }
 
-/* Returns 1 if n is prime, 0 otherwise. */
-int is_prime(int n) {
-    if (n < 2) return 0;
-    for (int i = 2; i * i <= n; i++) {
-        if (n % i == 0) return 0;
+int main() {
+    int current_alerts = 0;
+    int target_alerts = 3;
+
+    broadcast_emergency_signal(&current_alerts, target_alerts);
+    printf("\\nFinished! Total alerts broadcasted: %d\\n", current_alerts);
+
+    return 0;
+}`,
+  },
+  {
+    key: 'string_reversal',
+    name: 'string_reversal.c',
+    desc: 'String Reversal',
+    code: `// String Reversal
+#include <stdio.h>
+#include <string.h>
+
+void decrypt_intercepted_message(char *encrypted_msg) {
+    int left = 0;
+    int right = strlen(encrypted_msg) - 1;
+    char temp;
+    
+    while (left < right) {
+        temp = encrypted_msg[left];
+        encrypted_msg[left] = encrypted_msg[right];
+        encrypted_msg[right] = temp;
+        left++;
+        right--;
+    }
+}
+
+int main() {
+    char encrypted_msg[] = "Birzeit";
+    decrypt_intercepted_message(encrypted_msg);
+    printf("Decrypted Message: %s\\n", encrypted_msg);
+    return 0;
+}`,
+  },
+  {
+    key: 'prime_checker',
+    name: 'prime_checker.c',
+    desc: 'Prime Number Checker',
+    code: `// Prime Number Checker
+#include <stdio.h>
+
+int validate_rsa_key(int rsa_key) {
+    if (rsa_key <= 1)
+       return 0;
+
+    for (int i = 2; i * i <= rsa_key; i++) {
+        if (rsa_key % i == 0)
+            return 0;
     }
     return 1;
 }
 
 int main() {
-    printf("5! = %d\\n", factorial(5));
-    printf("7 is prime? %d\\n", is_prime(7));
+    int key_value = 29;
+
+    if (validate_rsa_key(key_value)) {
+        printf("RSA Key %d is VALID. Secure connection established.\\n", key_value);
+    } else {
+        printf("RSA Key %d is COMPROMISED. Connection terminated.\\n", key_value);
+    }
     return 0;
 }`,
   },
   {
-    name: 'string_ops.c',
-    code: `#include <stdio.h>
-#include <string.h>
+    key: 'perfect_number',
+    name: 'perfect_number.c',
+    desc: 'Perfect Number Checker',
+    code: `// Perfect Number Checker
+#include <stdio.h>
 
-/* Reverses a string in-place. */
-void reverse_string(char *str) {
-    int len = strlen(str);
-    for (int i = 0; i < len / 2; i++) {
-        char tmp = str[i];
-        str[i] = str[len - 1 - i];
-        str[len - 1 - i] = tmp;
+int verify_system_integrity(int system_id) {
+    int integrity_score = 0;
+    for (int i = 1; i <= system_id / 2; i++) {
+        if (system_id % i == 0) {
+            integrity_score += i;
+        }
     }
-}
-
-/* Counts occurrences of character c in str. */
-int count_char(const char *str, char c) {
-    int count = 0;
-    while (*str) {
-        if (*str == c) count++;
-        str++;
-    }
-    return count;
+    return (integrity_score == system_id);
 }
 
 int main() {
-    char word[] = "hello";
-    reverse_string(word);
-    printf("Reversed: %s\\n", word);
-    printf("Count of 'l': %d\\n", count_char("hello", 'l'));
+    int system_id = 28;
+    
+    if (verify_system_integrity(system_id)) {
+        printf("System core %d is PERFECT. Integrity verified.\\n", system_id);
+    } else {
+        printf("System core %d is CORRUPTED. Integrity failed.\\n", system_id);
+    }
     return 0;
 }`,
   },
   {
-    name: 'array_sort.c',
-    code: `#include <stdio.h>
+    key: 'max_element',
+    name: 'max_element.c',
+    desc: 'Finding the Maximum Element in an Array',
+    code: `// Finding the Maximum Element in an Array
+#include <stdio.h>
 
-/* Bubble sort – sorts arr[] of size n in ascending order. */
-void bubble_sort(int arr[], int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - i - 1; j++) {
-            if (arr[j] > arr[j + 1]) {
-                int tmp = arr[j];
-                arr[j] = arr[j + 1];
-                arr[j + 1] = tmp;
-            }
+int identify_main_target(int network_nodes[], int node_count) {
+    int max_threat = network_nodes[0];
+    for (int i = 1; i < node_count; i++) {
+        if (network_nodes[i] > max_threat) {
+            max_threat = network_nodes[i];
         }
     }
+    return max_threat;
 }
 
-/* Prints an array. */
-void print_array(int arr[], int n) {
-    for (int i = 0; i < n; i++) {
-        printf("%d ", arr[i]);
+int main() {
+    int network_nodes[] = {12, 45, 7, 89, 23};
+    int node_count = sizeof(network_nodes) / sizeof(network_nodes[0]);
+    printf("CRITICAL: The highest threat node is: %d\\n", identify_main_target(network_nodes, node_count));
+    return 0;
+}`,
+  },
+  {
+    key: 'factorial',
+    name: 'factorial.c',
+    desc: 'Factorial',
+    code: `// Factorial
+#include <stdio.h>
+
+long long calculate_encryption_combinations(int key_length) {
+    long long combinations = 1;
+    for (int i = 1; i <= key_length; i++) {
+        combinations *= i;
+    }
+    return combinations;
+}
+
+int main() {
+    int key_length = 5;
+    printf("Total combinations for key length %d = %lld\\n", key_length, calculate_encryption_combinations(key_length));
+    return 0;
+}`,
+  },
+  {
+    key: 'decimal_to_binary',
+    name: 'decimal_to_binary.c',
+    desc: 'Decimal to Binary Conversion',
+    code: `// Decimal to Binary Conversion
+#include <stdio.h>
+
+void encrypt_to_binary(int data_packet) {
+    int binary_stream[32];
+    int i = 0;
+    if (data_packet == 0) {
+        printf("Encrypted Stream: 0\\n");
+        return;
+    }
+
+    while (data_packet > 0) {
+        binary_stream[i] = data_packet % 2;
+        data_packet = data_packet / 2;
+        i++;
+    }
+
+    printf("Encrypted Binary Stream: ");
+    for (int j = i - 1; j >= 0; j--) {
+        printf("%d", binary_stream[j]);
     }
     printf("\\n");
 }
 
 int main() {
-    int data[] = {5, 3, 8, 1, 2};
-    int n = sizeof(data) / sizeof(data[0]);
-    bubble_sort(data, n);
-    print_array(data, n);
+    int packet = 17;
+    encrypt_to_binary(packet);
     return 0;
 }`,
   },
   {
-    name: 'linked_list.c',
-    code: `#include <stdio.h>
-#include <stdlib.h>
+    key: 'bubble_sort',
+    name: 'bubble_sort.c',
+    desc: 'Bubble Sort',
+    code: `// Bubble Sort
+#include <stdio.h>
 
-typedef struct Node {
-    int data;
-    struct Node *next;
-} Node;
-
-/* Create a new node with given value. */
-Node *create_node(int value) {
-    Node *node = (Node *)malloc(sizeof(Node));
-    node->data = value;
-    node->next = NULL;
-    return node;
-}
-
-/* Append a value to the end of the list. */
-void append(Node **head, int value) {
-    Node *new_node = create_node(value);
-    if (*head == NULL) {
-        *head = new_node;
-        return;
-    }
-    Node *current = *head;
-    while (current->next != NULL) {
-        current = current->next;
-    }
-    current->next = new_node;
-}
-
-/* Print all elements. */
-void print_list(Node *head) {
-    while (head != NULL) {
-        printf("%d -> ", head->data);
-        head = head->next;
-    }
-    printf("NULL\\n");
-}
-
-int main() {
-    Node *head = NULL;
-    append(&head, 10);
-    append(&head, 20);
-    append(&head, 30);
-    print_list(head);
-    return 0;
-}`,
-  },
-  {
-    name: 'file_io.c',
-    code: `#include <stdio.h>
-
-/* Counts the number of lines in a text file. */
-int count_lines(const char *filename) {
-    FILE *fp = fopen(filename, "r");
-    if (fp == NULL) return -1;
-    int lines = 0;
-    char ch;
-    while ((ch = fgetc(fp)) != EOF) {
-        if (ch == '\\n') lines++;
-    }
-    fclose(fp);
-    return lines;
-}
-
-/* Copies content from src file to dst file. */
-int copy_file(const char *src, const char *dst) {
-    FILE *in = fopen(src, "r");
-    FILE *out = fopen(dst, "w");
-    if (!in || !out) return -1;
-    char ch;
-    while ((ch = fgetc(in)) != EOF) {
-        fputc(ch, out);
-    }
-    fclose(in);
-    fclose(out);
-    return 0;
-}
-
-int main() {
-    printf("Lines: %d\\n", count_lines("file_io.c"));
-    return 0;
-}`,
-  },
-  {
-    name: 'calculator.c',
-    code: `#include <stdio.h>
-
-/* Adds two integers. */
-int add(int a, int b) {
-    return a + b;
-}
-
-/* Subtracts b from a. */
-int subtract(int a, int b) {
-    return a - b;
-}
-
-/* Multiplies two integers. */
-int multiply(int a, int b) {
-    return a * b;
-}
-
-/* Divides a by b. Returns 0 if b is zero. */
-int divide(int a, int b) {
-    if (b == 0) return 0;
-    return a / b;
-}
-
-int main() {
-    int x = 10, y = 3;
-    printf("Add:      %d\\n", add(x, y));
-    printf("Subtract: %d\\n", subtract(x, y));
-    printf("Multiply: %d\\n", multiply(x, y));
-    printf("Divide:   %d\\n", divide(x, y));
-    return 0;
-}`,
-  },
-  {
-    name: 'stack.c',
-    code: `#include <stdio.h>
-#include <stdlib.h>
-
-#define MAX_SIZE 100
-
-typedef struct {
-    int items[MAX_SIZE];
-    int top;
-} Stack;
-
-void stack_init(Stack *s) {
-    s->top = -1;
-}
-
-int stack_push(Stack *s, int value) {
-    if (s->top >= MAX_SIZE - 1) return -1;
-    s->items[++(s->top)] = value;
-    return 0;
-}
-
-int stack_pop(Stack *s) {
-    if (s->top < 0) return -1;
-    return s->items[(s->top)--];
-}
-
-int stack_peek(Stack *s) {
-    if (s->top < 0) return -1;
-    return s->items[s->top];
-}
-
-int main() {
-    Stack s;
-    stack_init(&s);
-    stack_push(&s, 10);
-    stack_push(&s, 20);
-    printf("Top: %d\\n", stack_peek(&s));
-    printf("Pop: %d\\n", stack_pop(&s));
-    return 0;
-}`,
-  },
-  {
-    name: 'matrix.c',
-    code: `#include <stdio.h>
-
-#define ROWS 3
-#define COLS 3
-
-/* Multiplies two 3x3 matrices and stores result in C. */
-void matrix_multiply(int A[ROWS][COLS], int B[ROWS][COLS], int C[ROWS][COLS]) {
-    for (int i = 0; i < ROWS; i++) {
-        for (int j = 0; j < COLS; j++) {
-            C[i][j] = 0;
-            for (int k = 0; k < COLS; k++) {
-                C[i][j] += A[i][k] * B[k][j];
+void sort_threat_levels(int threats[], int size) {
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - i - 1; j++) {
+            if (threats[j] > threats[j + 1]) {
+                int temp = threats[j];
+                threats[j] = threats[j + 1];
+                threats[j + 1] = temp;
             }
         }
     }
 }
 
-/* Prints a 3x3 matrix. */
-void print_matrix(int M[ROWS][COLS]) {
-    for (int i = 0; i < ROWS; i++) {
-        for (int j = 0; j < COLS; j++) {
-            printf("%4d ", M[i][j]);
-        }
-        printf("\\n");
-    }
-}
-
 int main() {
-    int A[3][3] = {{1,2,3},{4,5,6},{7,8,9}};
-    int B[3][3] = {{9,8,7},{6,5,4},{3,2,1}};
-    int C[3][3];
-    matrix_multiply(A, B, C);
-    print_matrix(C);
-    return 0;
-}`,
-  },
-  {
-    name: 'search.c',
-    code: `#include <stdio.h>
+    int threats[] = {64, 34, 25, 12, 22, 11, 90};
+    int size = 7;
 
-/* Linear search – returns index or -1. */
-int linear_search(int arr[], int n, int target) {
-    for (int i = 0; i < n; i++) {
-        if (arr[i] == target) return i;
+    sort_threat_levels(threats, size);
+    
+    printf("Threat levels prioritized: ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", threats[i]);
     }
-    return -1;
-}
+    printf("\\n");
 
-/* Binary search – arr must be sorted. Returns index or -1. */
-int binary_search(int arr[], int n, int target) {
-    int low = 0, high = n - 1;
-    while (low <= high) {
-        int mid = (low + high) / 2;
-        if (arr[mid] == target) return mid;
-        else if (arr[mid] < target) low = mid + 1;
-        else high = mid - 1;
-    }
-    return -1;
-}
-
-int main() {
-    int data[] = {1, 3, 5, 7, 9, 11};
-    int n = 6;
-    printf("Linear  (7): index %d\\n", linear_search(data, n, 7));
-    printf("Binary (11): index %d\\n", binary_search(data, n, 11));
-    return 0;
-}`,
-  },
-  {
-    name: 'temperature.c',
-    code: `#include <stdio.h>
-
-/* Converts Celsius to Fahrenheit. */
-float celsius_to_fahrenheit(float c) {
-    return (c * 9.0 / 5.0) + 32.0;
-}
-
-/* Converts Fahrenheit to Celsius. */
-float fahrenheit_to_celsius(float f) {
-    return (f - 32.0) * 5.0 / 9.0;
-}
-
-/* Returns the average of an array of floats. */
-float average(float arr[], int n) {
-    float sum = 0;
-    for (int i = 0; i < n; i++) {
-        sum += arr[i];
-    }
-    return sum / n;
-}
-
-int main() {
-    printf("100C = %.1fF\\n", celsius_to_fahrenheit(100));
-    printf("212F = %.1fC\\n", fahrenheit_to_celsius(212));
-    float temps[] = {20.0, 22.5, 19.0, 25.0};
-    printf("Avg: %.1f\\n", average(temps, 4));
     return 0;
 }`,
   },
@@ -577,47 +443,64 @@ int main() {
  *  pair that introduces a subtle bug.
  * ═══════════════════════════════════════════════════════════════ */
 
-const CORRUPTION_PATCHES = [
-  /* ── OBVIOUS RUNTIME ERRORS ── easy to spot when reading code ── */
-  // math_utils.c: infinite loop — i-- instead of i++ in factorial
-  { find: 'for (int i = 2; i <= n; i++) {', replace: 'for (int i = 2; i <= n; i--) {', desc: 'INFINITE LOOP — loop counter goes backward (i-- instead of i++)' },
-  // math_utils.c: factorial always returns 0
-  { find: 'int result = 1;', replace: 'int result = 0;', desc: 'WRONG INIT — result starts at 0 so factorial always returns 0' },
-  // string_ops.c: negative string length → crash
-  { find: 'int len = strlen(str);', replace: 'int len = -1;', desc: 'CRASH — string length set to -1 (negative index access)' },
-  // string_ops.c: division by zero inside loop
-  { find: 'if (*str == c) count++;', replace: 'if (*str == c) count += 1/0;', desc: 'RUNTIME ERROR — division by zero (1/0) on character match' },
-  // array_sort.c: massive buffer overflow
-  { find: 'j < n - i - 1; j++', replace: 'j < 99999; j++', desc: 'BUFFER OVERFLOW — loop runs to 99999 instead of array size' },
-  // array_sort.c: sort comparison reversed
-  { find: 'arr[j] > arr[j + 1]', replace: 'arr[j] < arr[j + 1]', desc: 'WRONG OUTPUT — sort comparison flipped (sorts descending)' },
-  // linked_list.c: NULL pointer dereference
-  { find: 'Node *node = (Node *)malloc(sizeof(Node));', replace: 'Node *node = NULL;', desc: 'NULL PTR CRASH — pointer set to NULL instead of malloc' },
-  // linked_list.c: self-referencing node → infinite traversal
-  { find: 'node->next = NULL;', replace: 'node->next = node;', desc: 'INFINITE LOOP — node points to itself (circular reference)' },
-  // file_io.c: resource leak (fclose removed)
-  { find: 'fclose(fp);', replace: '/* fclose(fp); */', desc: 'RESOURCE LEAK — file handle never closed (fclose commented out)' },
-  // file_io.c: null check removed → crash on missing file
-  { find: 'if (fp == NULL) return -1;', replace: '/* null check removed */', desc: 'CRASH — NULL check removed, will crash if file not found' },
-  // calculator.c: divide-by-zero guard removed
-  { find: 'if (b == 0) return 0;', replace: '/* zero check removed */', desc: 'DIVISION BY ZERO — safety guard removed, crashes when b=0' },
-  // calculator.c: add returns wrong result
-  { find: 'return a + b;', replace: 'return a - b;', desc: 'WRONG RESULT — add() actually subtracts (+ changed to -)' },
-  // stack.c: overflow check broken
-  { find: 's->top >= MAX_SIZE - 1', replace: 's->top >= 999999', desc: 'STACK OVERFLOW — size check uses 999999 instead of MAX_SIZE' },
-  // stack.c: bounds check removed → negative array index
-  { find: 'if (s->top < 0) return -1;', replace: '/* bounds check removed */', desc: 'CRASH — negative index access (bounds check removed)' },
-  // matrix.c: loop goes 10x too far → buffer overflow
-  { find: 'i < ROWS; i++', replace: 'i < ROWS * 10; i++', desc: 'BUFFER OVERFLOW — loop runs 10x past array bounds (ROWS*10)' },
-  // search.c: infinite loop in binary search
-  { find: 'low = mid + 1;', replace: 'low = mid;', desc: 'INFINITE LOOP — binary search never advances (mid+1 → mid)' },
-  // search.c: search returns -1 even when found
-  { find: 'if (arr[mid] == target) return mid;', replace: 'if (arr[mid] == target) return -1;', desc: 'ALWAYS FAILS — returns -1 even when target is found' },
-  // temperature.c: NaN result
-  { find: '9.0 / 5.0', replace: '0.0 / 0.0', desc: 'NaN ERROR — conversion formula uses 0.0/0.0 (produces NaN)' },
-  // temperature.c: division by zero in average
-  { find: 'return sum / n;', replace: 'return sum / 0;', desc: 'DIVISION BY ZERO — average always divides by 0' },
-];
+const CORRUPTION_PATCHES = {
+  while_loop: [
+    { find: '(*alert_counter)++;', replace: '(*alert_counter)--;', desc: 'INFINITE LOOP — counter decreases instead of increasing' },
+    { find: 'while (*alert_counter < target_alerts)', replace: 'while (*alert_counter <= target_alerts)', desc: 'OFF-BY-ONE ERROR — extra alert broadcasted' },
+    { find: 'int *alert_counter', replace: 'int *alert_counter_invalid', desc: 'NULL POINTER CRASH — invalid pointer passed' },
+    { find: '(*alert_counter)++;', replace: '(*alert_counter) += 2;', desc: 'SKIPPED ALERTS — counter increments by 2' },
+    { find: '*alert_counter < target_alerts', replace: '*alert_counter > target_alerts', desc: 'WRONG CONDITION — loop never executes' },
+  ],
+  string_reversal: [
+    { find: 'int right = strlen(encrypted_msg) - 1;', replace: 'int right = strlen(encrypted_msg);', desc: 'BUFFER OVERFLOW — accesses memory beyond the string' },
+    { find: 'left++;', replace: 'left--;', desc: 'INFINITE LOOP — left index goes backward' },
+    { find: 'encrypted_msg[right] = temp;', replace: 'encrypted_msg[right] = encrypted_msg[right];', desc: 'SILENT BUG — assigns same value, string unchanged' },
+    { find: 'while (left < right)', replace: 'while (left != right)', desc: 'SKIPS MIDDLE — misses swap when indices cross' },
+    { find: 'right--;', replace: 'right++;', desc: 'CRASH — right index goes out of bounds' },
+  ],
+  prime_checker: [
+    { find: 'if (rsa_key <= 1)', replace: 'if (rsa_key <= 100)', desc: 'WRONG RESULT — rejects all keys ≤ 100 as invalid' },
+    { find: 'rsa_key % i == 0', replace: 'rsa_key % i != 0', desc: 'INVERTED LOGIC — non-primes pass, primes fail' },
+    { find: 'return 1;', replace: 'return 0;', desc: 'ALWAYS FAILS — valid keys reported as compromised' },
+    { find: 'i * i <= rsa_key', replace: 'i <= rsa_key', desc: 'PERFORMANCE KILL — checks every number up to N' },
+    { find: 'for (int i = 2;', replace: 'for (int i = 0;', desc: 'DIVISION BY ZERO — starts loop at i=0' },
+  ],
+  perfect_number: [
+    { find: 'integrity_score += i;', replace: 'integrity_score -= i;', desc: 'WRONG RESULT — subtracts divisors instead of adding' },
+    { find: 'return (integrity_score == system_id);', replace: 'return (integrity_score != system_id);', desc: 'INVERTED RESULT — perfect numbers fail, non-perfect pass' },
+    { find: 'for (int i = 1; i <= system_id / 2; i++)', replace: 'for (int i = 1; i <= system_id; i++)', desc: 'WRONG LOGIC — includes number itself in sum' },
+    { find: 'int integrity_score = 0;', replace: 'int integrity_score = 1;', desc: 'OFF-BY-ONE — score starts at 1 instead of 0' },
+    { find: 'system_id % i == 0', replace: 'system_id % i != 0', desc: 'INVERTED CHECK — adds non-divisors instead of divisors' },
+  ],
+  max_element: [
+    { find: 'if (network_nodes[i] > max_threat)', replace: 'if (network_nodes[i] < max_threat)', desc: 'WRONG RESULT — finds MINIMUM instead of maximum' },
+    { find: 'int max_threat = network_nodes[0];', replace: 'int max_threat = 0;', desc: 'WRONG INIT — starts at 0, fails for negative arrays' },
+    { find: 'for (int i = 1; i < node_count; i++)', replace: 'for (int i = 0; i < node_count - 1; i++)', desc: 'SKIPS LAST — never checks last element' },
+    { find: 'max_threat = network_nodes[i];', replace: 'max_threat = i;', desc: 'RETURNS INDEX — saves index instead of value' },
+    { find: 'return max_threat;', replace: 'return network_nodes[0];', desc: 'ALWAYS FIRST — always returns first element' },
+  ],
+  factorial: [
+    { find: 'long long combinations = 1;', replace: 'long long combinations = 0;', desc: 'ALWAYS ZERO — multiplying by 0 gives 0 forever' },
+    { find: 'combinations *= i;', replace: 'combinations += i;', desc: 'WRONG OPERATION — sums instead of multiplying' },
+    { find: 'for (int i = 1; i <= key_length; i++)', replace: 'for (int i = 0; i <= key_length; i++)', desc: 'ALWAYS ZERO — starts from 0, result is always 0' },
+    { find: 'i <= key_length', replace: 'i < key_length', desc: 'OFF-BY-ONE — misses last multiplication' },
+    { find: 'combinations *= i;', replace: 'combinations *= key_length;', desc: 'WRONG RESULT — multiplies by same number every time' },
+  ],
+  decimal_to_binary: [
+    { find: 'data_packet = data_packet / 2;', replace: 'data_packet = data_packet * 2;', desc: 'INFINITE LOOP — multiplies instead of dividing' },
+    { find: 'data_packet % 2', replace: 'data_packet % 10', desc: 'WRONG BASE — uses mod 10 instead of mod 2' },
+    { find: 'for (int j = i - 1; j >= 0; j--)', replace: 'for (int j = 0; j < i; j++)', desc: 'REVERSED OUTPUT — prints binary in wrong order' },
+    { find: 'data_packet > 0', replace: 'data_packet >= 0', desc: 'INFINITE LOOP — condition includes 0, never stops' },
+    { find: 'int binary_stream[32];', replace: 'int binary_stream[2];', desc: 'BUFFER OVERFLOW — array too small for most numbers' },
+  ],
+  bubble_sort: [
+    { find: 'threats[j] > threats[j + 1]', replace: 'threats[j] < threats[j + 1]', desc: 'WRONG ORDER — sorts descending instead of ascending' },
+    { find: 'threats[j] = threats[j + 1];', replace: 'threats[j] = threats[j];', desc: 'SILENT BUG — copies to itself, sort does nothing' },
+    { find: 'int temp = threats[j];', replace: 'int temp = threats[j + 1];', desc: 'DATA LOSS — wrong value saved, duplicates appear' },
+    { find: 'j < size - i - 1', replace: 'j < size - 1', desc: 'SLOW SORT — redundant comparisons every pass' },
+    { find: 'threats[j + 1] = temp;', replace: 'threats[j] = temp;', desc: 'SWAP BROKEN — overwrites wrong position' },
+  ],
+};
 
 
 class CodeEngine {
@@ -645,35 +528,33 @@ class CodeEngine {
     let sigIdx   = 0;
 
     for (const player of players) {
-      const numClean = CONFIG.CODE_FILES.MIN_CLEAN
-        + Math.floor(Math.random() * (CONFIG.CODE_FILES.MAX_CLEAN - CONFIG.CODE_FILES.MIN_CLEAN + 1));
+      // Each player gets exactly ONE file named <playerName>.c
+      const playerFileName = player.name.replace(/\s+/g, '_') + '.c';
 
       const files = [];
 
-      for (let i = 0; i < numClean; i++) {
-        const tpl = shuffledClean[cleanIdx % shuffledClean.length];
-        cleanIdx++;
-        files.push({
-          name: tpl.name,
-          code: tpl.code,
-          original: tpl.code,
-          isClean: true,
-          suspiciousFunctions: [],
-        });
-      }
+      // Pick one clean code template
+      const tpl = shuffledClean[cleanIdx % shuffledClean.length];
+      cleanIdx++;
+      files.push({
+        name: playerFileName,
+        code: tpl.code,
+        original: tpl.code,
+        isClean: true,
+        templateKey: tpl.key,
+        suspiciousFunctions: [],
+      });
 
-      // Hackers get ONE extra file that contains suspicious function names
+      // Hackers get hacker-signature functions injected into their file
       if (player.isHacker()) {
         const sig = shuffledSig[sigIdx % shuffledSig.length];
         sigIdx++;
-        const insertAt = Math.floor(Math.random() * (files.length + 1));
-        files.splice(insertAt, 0, {
-          name: sig.name,
-          code: sig.code,
-          original: sig.code,
-          isClean: false,
-          suspiciousFunctions: sig.suspiciousFunctions,
-        });
+        // Append suspicious function names to the player's file metadata
+        files[0].suspiciousFunctions = sig.suspiciousFunctions;
+        // Append the suspicious code at the end of the player's file
+        files[0].code += '\n\n' + sig.code;
+        files[0].original = files[0].code;
+        files[0].isClean = false;
       }
 
       codeStore.set(player.id, {
@@ -695,22 +576,27 @@ class CodeEngine {
   static getInjectionOptions(codeStore, targetId) {
     const entry = codeStore.get(targetId);
     if (!entry) return [];
-    if (entry.infected) return [];  // already corrupted
+    if (entry.infected) return [];
 
-    const result = [];  // { fileIdx, fileName, patches: [{ patchIdx, desc }] }
+    const result = [];
     for (let fi = 0; fi < entry.files.length; fi++) {
       const file = entry.files[fi];
-      if (!file.isClean) continue; // skip hacker signature files
+      // TEMP: skip isClean check so hacker files also show options for testing
+      // if (!file.isClean) continue;
+
+      // Look up patches by templateKey
+      const templatePatches = CORRUPTION_PATCHES[file.templateKey] || [];
       const applicable = [];
-      for (let pi = 0; pi < CORRUPTION_PATCHES.length; pi++) {
-        if (file.code.includes(CORRUPTION_PATCHES[pi].find)) {
-          applicable.push({ patchIdx: pi, desc: CORRUPTION_PATCHES[pi].desc });
+      for (let pi = 0; pi < templatePatches.length; pi++) {
+        if (file.code.includes(templatePatches[pi].find)) {
+          applicable.push({ patchIdx: pi, desc: templatePatches[pi].desc });
         }
       }
       if (applicable.length > 0) {
         result.push({ fileIdx: fi, fileName: file.name, patches: applicable });
       }
     }
+    console.log('[INJECT-DEBUG] Total options for', targetId, ':', result.length, 'files with', result.reduce((s, r) => s + r.patches.length, 0), 'patches');
     return result;
   }
 
@@ -725,7 +611,8 @@ class CodeEngine {
     const file = entry.files[fileIdx];
     if (!file || !file.isClean) return { success: false, reason: 'invalid_file' };
 
-    const patch = CORRUPTION_PATCHES[patchIdx];
+    const templatePatches = CORRUPTION_PATCHES[file.templateKey] || [];
+    const patch = templatePatches[patchIdx];
     if (!patch) return { success: false, reason: 'invalid_patch' };
     if (!file.code.includes(patch.find)) return { success: false, reason: 'patch_not_applicable' };
 
@@ -746,10 +633,11 @@ class CodeEngine {
     if (entry.infected) return { success: false, reason: 'already_corrupted' };
 
     const cleanFiles = entry.files.filter(f => f.isClean);
-    const patches = CodeEngine.shuffle([...CORRUPTION_PATCHES]);
 
-    for (const patch of patches) {
-      for (const file of CodeEngine.shuffle([...cleanFiles])) {
+    for (const file of CodeEngine.shuffle([...cleanFiles])) {
+      const templatePatches = CORRUPTION_PATCHES[file.templateKey] || [];
+      const shuffledPatches = CodeEngine.shuffle([...templatePatches]);
+      for (const patch of shuffledPatches) {
         if (file.code.includes(patch.find)) {
           entry.originalCode = file.code;
           entry.corruptedFileIdx = entry.files.indexOf(file);
@@ -777,19 +665,17 @@ class CodeEngine {
       return { corrupted: false, playerName: entry.playerName };
     }
 
-    // Return corrupted file details + full files so admin can read the code
+    // Return only the corrupted file so admin reviews the exact damaged code
     const corruptedFile = entry.files[entry.corruptedFileIdx];
     return {
       corrupted: true,
       playerName: entry.playerName,
-      fileIdx: entry.corruptedFileIdx,
+      fileIdx: 0,
       fileName: corruptedFile?.name,
       corruptionDesc: entry.corruptionPatch?.desc || 'Unknown corruption',
-      // Full files so admin can view the infected code
-      files: entry.files.map(f => ({ name: f.name, code: f.code })),
-      // Repair option (mirrors hacker inject option structure)
+      files: corruptedFile ? [{ name: corruptedFile.name, code: corruptedFile.code }] : [],
       repairOptions: [{
-        fileIdx: entry.corruptedFileIdx,
+        fileIdx: 0,
         fileName: corruptedFile?.name,
         fixes: [{
           desc: entry.corruptionPatch?.desc || 'Restore original code',
