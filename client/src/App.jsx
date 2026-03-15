@@ -29,7 +29,7 @@ export default function App() {
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [fellowHackers, setFellowHackers] = useState([]);
   const [phase, setPhase] = useState(PHASES.LOBBY);
-  const [phaseMessage, setPhaseMesage] = useState('');
+  const [phaseMessage, setPhaseMessage] = useState('');
   const [phaseDuration, setPhaseDuration] = useState(0);
 
   // ── Voting ──
@@ -136,7 +136,7 @@ export default function App() {
     // Phase
     socket.on(EVENTS.PHASE_CHANGE, ({ phase: p, message, duration, sprint, systemStability, defenders: defs, ...rest }) => {
       setPhase(p);
-      setPhaseMesage(message || '');
+      setPhaseMessage(message || '');
       setPhaseDuration(duration || 0);
       setPhaseEndTime(duration ? Date.now() + duration : null);
       setGameState(prev => prev ? ({ ...prev, phase: p, sprint, systemStability, ...rest }) : prev);
