@@ -315,6 +315,26 @@ export default function GameScreen({
                         </p>
                       </div>
 
+                      {/* Injection details — show what the hacker injected */}
+                      <div className="p-2 rounded border border-red-500/30 bg-red-900/20 space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-red-300/80 font-bold flex items-center gap-1">
+                          <Skull size={10} aria-hidden="true" /> Hacker Injection Details
+                        </p>
+                        <p className="text-xs text-gray-300">
+                          Target: <span className="font-semibold text-red-300">{adminScanResult.targetName}</span>
+                        </p>
+                        {adminScanResult.fileName && (
+                          <p className="text-xs text-gray-300 flex items-center gap-1">
+                            <File size={10} /> Attacked file: <span className="font-mono text-red-300">{adminScanResult.fileName}</span>
+                          </p>
+                        )}
+                        {adminScanResult.corruptionDesc && (
+                          <p className="text-xs text-gray-300 flex items-center gap-1">
+                            <Bug size={10} /> Corruption: <span className="font-semibold text-red-400">{adminScanResult.corruptionDesc}</span>
+                          </p>
+                        )}
+                      </div>
+
                       {adminScanResult.files?.length > 0 && (
                         <div className="space-y-2">
                           {adminScanResult.files.map((file, fIdx) => (
