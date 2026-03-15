@@ -97,8 +97,10 @@ export default function CodeBrowser({
   // During NIGHT: hide code for everyone until the night resolution completes.
   // Exception: hackers who have already agreed on a target should be able to
   // view the agreed target's files (so they can choose the injection).
+  // Exception: admin can review code during nightReview (after hacker injection).
   if (isNight && !nightResult?.eliminated) {
     const isHacker = myRole === ROLES.HACKER;
+    const adminCanReviewNow = myRole === ROLES.ADMIN && isNightReview;
     const qaCanReviewNow = myRole === ROLES.SECURITY_LEAD && isNightReview;
 
     // Once QA review starts, the QA panel is the source of truth; hide this placeholder.
@@ -106,7 +108,8 @@ export default function CodeBrowser({
       return null;
     }
 
-    if (!isHacker) {
+    // Admin can review the corrupted code during nightReview — don't block them.
+    if (!isHacker && !adminCanReviewNow) {
       return (
         <div className="cyber-card p-3 text-xs text-gray-400">
           Code is hidden while the night is in progress. It will be revealed after hackers finish their action.
@@ -305,8 +308,8 @@ export default function CodeBrowser({
       return [];
     }
 
-    // SUNRISE Admin: own code + scanned corrupted player (if any)
-    if (isSunrise && myRole === ROLES.ADMIN) {
+    // SUNRISE or NIGHT REVIEW Admin: own code + scanned corrupted player (if any)
+    if ((isSunrise || isNightReview) && myRole === ROLES.ADMIN) {
       const self = [{ id: myId, name: alivePlayers?.find(p => p.id === myId)?.name || 'You' }];
       if (adminScanResult?.corrupted && adminScanResult?.targetId) {
         self.push({ id: adminScanResult.targetId, name: adminScanResult.targetName });
@@ -331,7 +334,7 @@ export default function CodeBrowser({
       {/* Header: centered title + filename for single-file cases */}
       <div className="flex flex-col items-center mb-2">
         <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold">CODE FILES</h3>
-        {isSunrise && (myRole === ROLES.ADMIN || myRole === ROLES.SECURITY_LEAD) && (
+        {(isSunrise || isNightReview) && (myRole === ROLES.ADMIN || myRole === ROLES.SECURITY_LEAD) && (
           <span className="text-[10px] mt-1 px-2 py-0.5 rounded bg-cyber-darker border border-cyber-border text-gray-400">
             Views: {viewsUsed}/{viewsMax}
           </span>
@@ -412,7 +415,7 @@ export default function CodeBrowser({
           )}
 
           {/* ═══ ADMIN: Code-view note (repair options are in the panel above) ═══ */}
-          {myRole === ROLES.ADMIN && isSunrise && selectedPlayerId !== myId && (
+          {myRole === ROLES.ADMIN && (isSunrise || isNightReview) && selectedPlayerId !== myId && (
             <div className="space-y-2">
               {(!adminScanResult || adminScanResult.targetId !== selectedPlayerId) && (
                 <div className="text-xs p-3 rounded border bg-blue-900/10 border-blue-500/20 text-blue-300 flex items-center gap-1">
@@ -460,7 +463,7 @@ export default function CodeBrowser({
           )}
 
           {/* ═══ ADMIN: Instruction when viewing own code ═══ */}
-          {myRole === ROLES.ADMIN && isSunrise && selectedPlayerId === myId && (
+          {myRole === ROLES.ADMIN && (isSunrise || isNightReview) && selectedPlayerId === myId && (
             <div className="text-xs p-2 rounded border bg-blue-900/10 border-blue-500/20 text-blue-400">
               Use the <span className="font-semibold">Scan Code for Corruption</span> buttons in the panel above to investigate players.
               Only corrupted code will be revealed here.
@@ -468,7 +471,7 @@ export default function CodeBrowser({
           )}
 
           {/* Code display — gated for admin: hidden when scan says clean */}
-          {(myRole === ROLES.ADMIN && isSunrise && effectiveSelectedPlayerId !== myId &&
+          {(myRole === ROLES.ADMIN && (isSunrise || isNightReview) && effectiveSelectedPlayerId !== myId &&
             adminScanResult && adminScanResult.targetId === effectiveSelectedPlayerId && !adminScanResult.corrupted)
             ? null
             : selectedPlayer ? (
