@@ -318,7 +318,7 @@ export default function GameScreen({
                       {/* Injection details — show what the hacker injected */}
                       <div className="p-2 rounded border border-red-500/30 bg-red-900/20 space-y-1">
                         <p className="text-[10px] uppercase tracking-wider text-red-300/80 font-bold flex items-center gap-1">
-                          <Skull size={10} /> Hacker Injection Details
+                          <Skull size={10} aria-hidden="true" /> Hacker Injection Details
                         </p>
                         <p className="text-xs text-gray-300">
                           Target: <span className="font-semibold text-red-300">{adminScanResult.targetName}</span>
