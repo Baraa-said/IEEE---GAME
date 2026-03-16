@@ -106,7 +106,8 @@ export default function CodeBrowser({
       return null;
     }
 
-    if (!isHacker) {
+    // After hacker injection, let developers see their own code
+    if (!isHacker && !(myRole === ROLES.DEVELOPER && hackerInjected)) {
       return (
         <div className="cyber-card p-3 text-xs text-gray-400">
           Code is hidden while the night is in progress. It will be revealed after hackers finish their action.

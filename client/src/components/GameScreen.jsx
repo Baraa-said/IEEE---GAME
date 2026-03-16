@@ -209,7 +209,7 @@ export default function GameScreen({
             advancedMode={gameState?.advancedMode}
             message={phaseMessage}
             phaseEndTime={phaseEndTime}
-            timerEnabled={false}
+            timerEnabled={true}
             showSkip={true}
             onSkipPhase={onSkipPhase}
             hasSkipped={hasSkipped}
@@ -340,20 +340,11 @@ export default function GameScreen({
                             Damaged
                           </span>
                         </div>
-                        {adminScanResult.corruptionDesc && (
-                          <div className="mt-2 p-2 rounded bg-red-900/20 border border-red-500/20">
-                            <p className="text-[10px] uppercase tracking-wider text-red-400/70 font-bold mb-1">Attack Type</p>
-                            <p className="text-xs text-red-300 font-mono">{adminScanResult.corruptionDesc}</p>
-                          </div>
-                        )}
                       </div>
 
-                      {/* Corrupted code display */}
+                      {/* Corrupted code display — no scroll, like hacker code view */}
                       {adminScanResult.files?.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] uppercase tracking-wider text-red-400/80 font-bold flex items-center gap-1.5">
-                            <File size={11} /> Corrupted Code — Review Carefully
-                          </p>
                           {adminScanResult.files.map((file, fIdx) => (
                             <div key={fIdx} className="rounded-lg border-2 border-red-500/30 overflow-hidden bg-[#0d1117] shadow-lg shadow-red-900/10">
                               <div className="px-3 py-1.5 bg-red-950/40 border-b border-red-500/20 flex items-center justify-between">
@@ -364,7 +355,7 @@ export default function GameScreen({
                                   <AlertTriangle size={9} /> Corrupted
                                 </span>
                               </div>
-                              <div className="font-mono text-[11px] leading-5 whitespace-pre overflow-auto max-h-64 px-0 py-2">
+                              <div className="font-mono text-[10px] leading-5 whitespace-pre-wrap break-all px-0 py-2">
                                 {file.code?.split('\n').map((line, i) => (
                                   <div key={i} className="flex hover:bg-red-500/5 group">
                                     <span className="select-none text-gray-600 text-right pr-3 pl-2 min-w-[2.5rem] border-r border-red-900/30 text-[10px]">{i + 1}</span>
@@ -377,32 +368,21 @@ export default function GameScreen({
                         </div>
                       )}
 
-                      {/* Repair options */}
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider text-green-300/80 font-bold flex items-center gap-1.5">
-                          <CheckCircle size={11} /> Fix Options — Repair the Corruption
-                        </p>
-                        {(adminScanResult.repairOptions || []).flatMap((option) =>
-                          (option.fixes || []).map((fix, idx) => (
+                      {/* Fix options — matching hacker injection button style */}
+                      {adminScanResult.fixOptions?.length > 0 && !adminRepairResult && (
+                        <div className="mt-2 space-y-1.5 p-2">
+                          {adminScanResult.fixOptions.map((fix) => (
                             <button
-                              key={`${option.fileIdx}-${idx}`}
-                              onClick={() => onAdminRepair(adminScanResult.targetId)}
-                              className="w-full py-3.5 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/20 text-green-300 hover:bg-green-700/40 hover:border-green-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-green-900/20 flex items-center justify-center gap-2"
+                              key={fix.fixIndex}
+                              onClick={() => onAdminRepair(adminScanResult.targetId, fix.fixIndex)}
+                              className="w-full text-left text-xs px-3 py-2.5 rounded-lg border border-green-500/25 bg-green-900/10 text-green-300 hover:bg-green-900/30 hover:border-green-500/50 transition-all flex items-center gap-2 shadow-sm"
                             >
-                              <CheckCircle size={16} /> Fix Attack — {fix.desc}
+                              <span className="text-green-500 flex-shrink-0"><CheckCircle size={14} /></span>
+                              <span>{fix.label}</span>
                             </button>
-                          ))
-                        )}
-
-                        {(!adminScanResult.repairOptions || adminScanResult.repairOptions.length === 0) && (
-                          <button
-                            onClick={() => onAdminRepair(adminScanResult.targetId)}
-                            className="w-full py-3.5 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/20 text-green-300 hover:bg-green-700/40 hover:border-green-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-green-900/20 flex items-center justify-center gap-2"
-                          >
-                            <CheckCircle size={16} /> Repair Corrupted Code
-                          </button>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -410,20 +390,37 @@ export default function GameScreen({
                     <div className={`cyber-card animate-slide-up space-y-2 ${
                       adminRepairResult.repaired
                         ? 'border-green-500/40 bg-green-900/10'
+                        : adminRepairResult.wrongFix
+                        ? 'border-red-500/40 bg-red-900/10'
                         : 'border-yellow-500/40 bg-yellow-900/10'
                     }`}>
                       <h3 className={`text-xs uppercase tracking-wider font-bold flex items-center gap-1.5 ${
-                        adminRepairResult.repaired ? 'text-green-400' : 'text-yellow-400'
+                        adminRepairResult.repaired ? 'text-green-400' : adminRepairResult.wrongFix ? 'text-red-400' : 'text-yellow-400'
                       }`}>
-                        <CheckCircle size={14} /> Repair Result
-                      </h3>
-                      <p className={`text-sm ${adminRepairResult.repaired ? 'text-green-300' : 'text-yellow-300'}`}>
                         {adminRepairResult.repaired
-                          ? 'The corrupted code has been repaired successfully. The developer is safe.'
+                          ? <><CheckCircle size={14} /> Repair Successful</>
+                          : adminRepairResult.wrongFix
+                          ? <><XCircle size={14} /> Wrong Fix!</>
+                          : <><CheckCircle size={14} /> Repair Result</>
+                        }
+                      </h3>
+                      <p className={`text-sm ${adminRepairResult.repaired ? 'text-green-300' : adminRepairResult.wrongFix ? 'text-red-300' : 'text-yellow-300'}`}>
+                        {adminRepairResult.repaired
+                          ? `The corrupted code has been repaired successfully. ${adminRepairResult.targetName} is safe!`
+                          : adminRepairResult.wrongFix
+                          ? `Wrong fix chosen! ${adminRepairResult.targetName} has been eliminated due to the failed repair attempt.`
                           : 'No corrupted code was available to repair.'}
                       </p>
                     </div>
                   )}
+
+                  {/* Admin Finish Review button */}
+                  <button
+                    onClick={onFinishSunrise}
+                    className="w-full py-3 rounded-lg border border-green-400/50 bg-green-900/30 text-green-300 font-bold text-sm hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02] transition-all animate-bounce-in"
+                  >
+                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Review — I'm Done
+                  </button>
                 </div>
               )}
 
@@ -433,8 +430,8 @@ export default function GameScreen({
                   <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2 flex items-center gap-1.5">
                     <SunriseIcon size={14} /> QA — Scan Suspects
                   </h3>
-                  <p className="text-xs text-gray-400 mb-3">
-                    Select a player to scan their code for hacker injections:
+                  <p className="text-sm text-red-400 font-bold text-center mb-3">
+                    You have 1 chance to guess who is the hacker
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     {alivePlayers.filter(p => p.id !== myId).map((p, idx) => (
@@ -450,44 +447,17 @@ export default function GameScreen({
                       </button>
                     ))}
                   </div>
-                  {/* Scan result */}
-                  {securityScanResult && (
-                    <div className={`mt-2 p-3 rounded border text-xs space-y-3 ${
-                      securityScanResult.isHacker
-                        ? 'bg-red-900/20 border-red-500/40'
-                        : 'bg-green-900/20 border-green-500/30'
-                    }`}>
-                      {securityScanResult.isHacker ? (
-                        <p className="text-red-400 font-bold flex items-center gap-1"><AlertTriangle size={12} /> {securityScanResult.targetName} is a HACKER!</p>
-                      ) : (
-                        <p className="text-green-400 font-semibold flex items-center gap-1"><CheckCircle size={12} /> {securityScanResult.targetName} is NOT a Hacker.</p>
-                      )}
-
-                      {Array.isArray(securityScanResult.codeFiles) && securityScanResult.codeFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-[10px] uppercase tracking-wider text-gray-300 font-bold">
-                            Revealed C Code
-                          </p>
-                          {securityScanResult.codeFiles.map((file, idx) => (
-                            <div key={`${file.name}-${idx}`} className="rounded border border-gray-700/60 bg-[#0d1117] overflow-hidden">
-                              <div className="px-2 py-1 border-b border-gray-700/60 text-[10px] font-mono text-cyan-300">
-                                {file.name}
-                              </div>
-                              <pre className="m-0 p-2 text-[11px] leading-5 text-gray-300 font-mono whitespace-pre-wrap break-words">
-                                {file.code}
-                              </pre>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                  {/* Scan result code - independent box below all players */}
+                  {securityScanResult && Array.isArray(securityScanResult.codeFiles) && securityScanResult.codeFiles.length > 0 && (
+                    <div className="rounded border border-gray-700/60 bg-[#0d1117] overflow-hidden">
+                      <div className="px-2 py-1 border-b border-gray-700/60 text-[10px] font-mono text-cyan-300">
+                        {securityScanResult.codeFiles[0].name}
+                      </div>
+                      <pre className="m-0 p-2 text-[11px] leading-5 text-gray-300 font-mono whitespace-pre-wrap break-words">
+                        {securityScanResult.codeFiles[0].code}
+                      </pre>
                     </div>
                   )}
-                  <button
-                    onClick={onFinishSunrise}
-                    className="w-full py-3 rounded-lg border border-yellow-400/50 bg-yellow-900/30 text-yellow-300 font-bold text-sm hover:bg-yellow-700/50 hover:border-yellow-300 hover:scale-[1.02] transition-all animate-bounce-in"
-                  >
-                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Review — I'm Done
-                  </button>
                 </div>
               )}
 

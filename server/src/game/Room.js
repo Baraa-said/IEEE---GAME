@@ -846,16 +846,43 @@ class Room {
   }
 
   /**
-   * Admin repairs a player's corrupted code.
+   * Admin attempts to repair a player's corrupted code by choosing a fix option.
+   * @param {string} playerId - admin's socket id
+   * @param {string} targetId - the corrupted player
+   * @param {number} fixIndex - the fix option index the admin chose
+   * @param {number} correctFixIndex - the correct fix index (from scan result)
+   * @param {function} sendToPlayer
    */
-  submitAdminRepair(playerId, targetId, sendToPlayer) {
+  submitAdminRepair(playerId, targetId, fixIndex, correctFixIndex, sendToPlayer) {
     const player = this.getPlayer(playerId);
     const reviewPhaseActive = this.phase === PHASES.SUNRISE || (this.phase === PHASES.NIGHT && this.nightActions?.hackerInjected);
     if (!player || !player.alive || !player.isAdmin() || !reviewPhaseActive) return null;
 
     this._lastSendToPlayer = sendToPlayer;
-    const repairResult = CodeEngine.repairCorruption(this.codeStore, targetId);
     const target = this.getPlayer(targetId);
+
+    // If fixIndex is provided (new fix-option flow)
+    if (typeof fixIndex === 'number' && typeof correctFixIndex === 'number') {
+      const repairResult = CodeEngine.attemptRepair(this.codeStore, targetId, fixIndex, correctFixIndex);
+      if (repairResult.correct && repairResult.wasCorrupted) {
+        // Correct fix — protect the player
+        this.nightActions.adminProtectTarget = targetId;
+        this.nightActions.adminRepairs.push(targetId);
+      } else if (!repairResult.correct && repairResult.wasCorrupted) {
+        // Wrong fix — the target player will be eliminated
+        this.nightActions.adminKillTarget = targetId;
+      }
+      return {
+        targetId,
+        targetName: target?.name || 'Unknown',
+        repaired: repairResult.correct && repairResult.wasCorrupted,
+        wrongFix: !repairResult.correct && repairResult.wasCorrupted,
+        fileName: repairResult.fileName || null,
+      };
+    }
+
+    // Legacy fallback — auto-repair
+    const repairResult = CodeEngine.repairCorruption(this.codeStore, targetId);
     if (repairResult.wasCorrupted) {
       this.nightActions.adminRepairs.push(targetId);
     }

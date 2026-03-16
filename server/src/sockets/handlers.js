@@ -298,17 +298,20 @@ function registerHandlers(io, socket) {
     const alivePlayers = room.getAlivePlayers();
     // Bots always agree to skip — only real players need to vote
     const realAlive = alivePlayers.filter(p => !p.isBot).length;
+    const majorityNeeded = Math.floor(realAlive / 2) + 1;
     broadcastToRoom(room.id, EVENTS.SKIP_UPDATE, {
       skipCount: room.skipVotes.size,
       totalAlive: realAlive,
+      majorityNeeded,
     });
 
-    // If all real (non-bot) alive players voted to skip, advance phase
+    // If majority (>50%) of real alive players voted to skip, advance phase
     const realSkips = [...room.skipVotes].filter(id => {
       const p = room.getPlayer(id);
       return p && !p.isBot;
     }).length;
-    if (realSkips >= realAlive) {
+    const majorityNeeded = Math.floor(realAlive / 2) + 1;
+    if (realSkips >= majorityNeeded) {
       room.skipPhase((event, data) => broadcastToRoom(room.id, event, data),
         (playerId, event, data) => io.to(playerId).emit(event, data));
     }
@@ -502,10 +505,19 @@ function registerHandlers(io, socket) {
 
     const details = CodeEngine.getCorruptionDetails(room.codeStore, effectiveTargetId);
     const target = room.getPlayer(effectiveTargetId);
+
+    // Store correctFixIndex server-side (don't send to client)
+    if (details.corrupted && typeof details.correctFixIndex === 'number') {
+      room.nightActions.adminCorrectFixIndex = details.correctFixIndex;
+    }
+
+    // Strip correctFixIndex before sending to client
+    const { correctFixIndex, ...clientDetails } = details;
+
     socket.emit(EVENTS.ADMIN_SCAN_RESULT, {
       targetId: effectiveTargetId,
       targetName: target?.name || details.playerName || 'Unknown',
-      ...details,
+      ...clientDetails,
     });
   });
 
@@ -535,15 +547,17 @@ function registerHandlers(io, socket) {
   /* ──────────────────────────────────────────
    *  ADMIN REPAIR (Admin fixes a corrupted player's code)
    * ────────────────────────────────────────── */
-  socket.on(EVENTS.ADMIN_REPAIR, ({ targetId }) => {
+  socket.on(EVENTS.ADMIN_REPAIR, ({ targetId, fixIndex }) => {
     const room = roomManager.getRoomBySocket(socket.id);
     const reviewPhaseActive = room && (room.phase === PHASES.SUNRISE || (room.phase === PHASES.NIGHT && room.nightActions?.hackerInjected));
     if (!room || !room.codeStore || !reviewPhaseActive) return;
 
-    const result = room.submitAdminRepair(socket.id, targetId, sendToPlayerFn);
+    // Use server-stored correctFixIndex (not client-provided)
+    const correctFixIndex = room.nightActions.adminCorrectFixIndex;
+    const result = room.submitAdminRepair(socket.id, targetId, fixIndex, correctFixIndex, sendToPlayerFn);
     if (result) {
       socket.emit(EVENTS.ADMIN_REPAIR_RESULT, result);
-      // Send the target their updated (repaired) code
+      // Send the target their updated (repaired) code if successfully fixed
       if (result.repaired) {
         const ownCode = CodeEngine.getOwnCode(room.codeStore, targetId);
         if (ownCode) {

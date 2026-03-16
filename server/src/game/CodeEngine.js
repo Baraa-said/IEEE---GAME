@@ -656,6 +656,10 @@ class CodeEngine {
    * Admin scans a specific player and returns corruption details.
    * If corrupted, also returns the code so the admin can inspect it.
    * If clean, returns corrupted: false so client blocks code view.
+   *
+   * IMPORTANT: The admin is NOT told what injection was applied.
+   * Instead, they see the corrupted code and multiple fix options
+   * (one correct + several decoys from the same template's patch pool).
    */
   static getCorruptionDetails(codeStore, targetId) {
     const entry = codeStore.get(targetId);
@@ -667,25 +671,106 @@ class CodeEngine {
 
     // Return only the corrupted file so admin reviews the exact damaged code
     const corruptedFile = entry.files[entry.corruptedFileIdx];
+    const templateKey = corruptedFile?.templateKey;
+    const allPatches = CORRUPTION_PATCHES[templateKey] || [];
+    const appliedPatch = entry.corruptionPatch;
+
+    // Build fix options from ALL patches of the same template.
+    // The correct fix reverses the applied patch; decoy fixes describe
+    // other possible patches (wrong choices).
+    const fixOptions = [];
+    let correctFixIndex = -1;
+
+    for (let i = 0; i < allPatches.length; i++) {
+      const patch = allPatches[i];
+      // The correct fix: revert the applied patch (replace → find)
+      const isCorrect = patch.find === appliedPatch?.find && patch.replace === appliedPatch?.replace;
+      if (isCorrect) {
+        correctFixIndex = fixOptions.length;
+        // Correct fix: replace the corrupted code with the original
+        fixOptions.push({
+          fixIndex: fixOptions.length,
+          label: `Replace \`${patch.replace}\` with \`${patch.find}\``,
+        });
+      } else {
+        // Decoy fix: suggests changing the original code (patch.find is in the file)
+        // to the corrupted version (patch.replace), which would introduce ANOTHER bug.
+        // Framed as a "fix" so it looks plausible to the admin.
+        fixOptions.push({
+          fixIndex: fixOptions.length,
+          label: `Replace \`${patch.find}\` with \`${patch.replace}\``,
+        });
+      }
+    }
+
+    // Shuffle fix options but track the correct index
+    const shuffled = CodeEngine._shuffleWithTracking(fixOptions, correctFixIndex);
+
     return {
       corrupted: true,
       playerName: entry.playerName,
       fileIdx: 0,
       fileName: corruptedFile?.name,
-      corruptionDesc: entry.corruptionPatch?.desc || 'Unknown corruption',
       files: corruptedFile ? [{ name: corruptedFile.name, code: corruptedFile.code }] : [],
-      repairOptions: [{
-        fileIdx: 0,
-        fileName: corruptedFile?.name,
-        fixes: [{
-          desc: entry.corruptionPatch?.desc || 'Restore original code',
-        }],
-      }],
+      fixOptions: shuffled.items,
+      correctFixIndex: shuffled.trackedIndex,
     };
   }
 
   /**
+   * Shuffle an array and track where a specific index ends up.
+   */
+  static _shuffleWithTracking(arr, trackedIndex) {
+    const items = arr.map((item, i) => ({ ...item, _origIdx: i }));
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    let newTrackedIndex = -1;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i]._origIdx === trackedIndex) {
+        newTrackedIndex = i;
+      }
+      items[i].fixIndex = i;
+      delete items[i]._origIdx;
+    }
+    return { items, trackedIndex: newTrackedIndex };
+  }
+
+  /**
+   * Admin attempts to fix corruption by choosing a fix option.
+   * @param {Map} codeStore
+   * @param {string} targetId
+   * @param {number} fixIndex - the fix option the admin chose
+   * @param {number} correctFixIndex - the correct fix index (from getCorruptionDetails)
+   * @returns {{ success: boolean, correct: boolean, wasCorrupted: boolean, fileName?: string }}
+   */
+  static attemptRepair(codeStore, targetId, fixIndex, correctFixIndex) {
+    const entry = codeStore.get(targetId);
+    if (!entry) return { success: false, correct: false, wasCorrupted: false };
+    if (!entry.infected) return { success: true, correct: true, wasCorrupted: false };
+
+    if (fixIndex === correctFixIndex) {
+      // Correct fix — revert the code
+      const file = entry.files[entry.corruptedFileIdx];
+      if (file && entry.originalCode) {
+        file.code = entry.originalCode;
+      }
+      const fileName = file?.name;
+      entry.infected = false;
+      entry.corruptedFileIdx = null;
+      entry.originalCode = null;
+      entry.corruptionPatch = null;
+      return { success: true, correct: true, wasCorrupted: true, fileName };
+    } else {
+      // Wrong fix — the target player will be eliminated
+      return { success: true, correct: false, wasCorrupted: true };
+    }
+  }
+
+  /**
    * Admin fixes (reverts) corruption in a player's code.
+   * @deprecated Use attemptRepair instead for fix-option gameplay
    */
   static repairCorruption(codeStore, targetId) {
     const entry = codeStore.get(targetId);

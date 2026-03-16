@@ -413,8 +413,8 @@ export default function App() {
     socket.emit(EVENTS.HACKER_INJECT_VOTE, { fileIdx, patchIdx });
   };
 
-  const adminRepair = (targetId) => {
-    socket.emit(EVENTS.ADMIN_REPAIR, { targetId });
+  const adminRepair = (targetId, fixIndex) => {
+    socket.emit(EVENTS.ADMIN_REPAIR, { targetId, fixIndex });
   };
 
   const adminScanCorruption = (targetId) => {
@@ -504,7 +504,7 @@ export default function App() {
   // In-game
   return (
     <>
-      <SkyBackground phase={phase} />
+      <SkyBackground phase={phase} role={myRole} />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <GameScreen
         myId={myId}
