@@ -275,55 +275,100 @@ export default function GameScreen({
               {myRole === ROLES.ADMIN && amAlive && (
                 <div className="space-y-3">
 
-                  <div className="cyber-card border-blue-500/30 bg-blue-900/10">
-                    <h3 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2 flex items-center gap-1.5">
-                      <Search size={14} /> Admin Review
-                    </h3>
-                    <p className="text-sm text-gray-300">
-                      If you want to save the developer, fix the attack.
-                    </p>
+                  {/* Header banner — attack detected */}
+                  <div className="cyber-card border-red-500/40 bg-red-950/30 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 via-transparent to-red-900/10 animate-pulse pointer-events-none" />
+                    <div className="flex items-center gap-3 relative">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-900/40 border border-red-500/50 flex items-center justify-center">
+                        <AlertTriangle size={20} className="text-red-400 animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-red-400 tracking-wide flex items-center gap-2">
+                          ATTACK DETECTED — ADMIN REVIEW
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-900/50 border border-red-500/40 text-red-300 uppercase tracking-widest font-mono animate-pulse">Night Mode</span>
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          The hacker has corrupted a developer's code. Review and fix the attack to save them.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {!adminScanResult && (isSunrise || isNightReview) && (
-                    <div className="p-2 rounded border border-blue-500/30 bg-blue-900/10 text-blue-300 text-xs text-center animate-fade-in space-y-2">
-                      <div>
-                        <Search size={12} className="inline mr-1" /> Loading attacked code...
+                    <div className="p-4 rounded-lg border-2 border-dashed border-red-500/30 bg-red-950/20 text-center animate-fade-in space-y-3">
+                      <div className="flex justify-center">
+                        <div className="w-12 h-12 rounded-full bg-red-900/30 border border-red-500/40 flex items-center justify-center">
+                          <Search size={20} className="text-red-400 animate-pulse" />
+                        </div>
                       </div>
+                      <p className="text-red-300 text-sm font-semibold">Scanning for corrupted code...</p>
+                      <p className="text-gray-500 text-xs">Automatically loading the attacked file</p>
                       <button
                         onClick={() => onAdminScanCorruption()}
-                        className="px-3 py-1 rounded border border-blue-400/40 bg-blue-900/30 text-blue-200 hover:bg-blue-800/40 transition-all"
+                        className="px-4 py-2 rounded-lg border border-red-400/40 bg-red-900/30 text-red-200 hover:bg-red-800/40 transition-all font-semibold text-sm"
                       >
-                        Show Attacked Code
+                        <Search size={12} className="inline mr-1" /> Load Attacked Code
                       </button>
                     </div>
                   )}
 
                   {adminScanResult && !adminScanResult.corrupted && (
-                    <div className="p-2 rounded border border-green-500/30 bg-green-900/10 text-green-400 text-xs text-center animate-fade-in">
-                      <CheckCircle size={12} className="inline mr-1" /> No active attack was found for this round.
+                    <div className="p-3 rounded-lg border border-green-500/30 bg-green-900/10 text-green-400 text-sm text-center animate-fade-in flex items-center justify-center gap-2">
+                      <CheckCircle size={16} /> No active attack was found for this round. The night passes safely.
                     </div>
                   )}
 
                   {adminScanResult?.corrupted && (
-                    <div className="cyber-card border-red-500/40 bg-red-900/10 animate-slide-up space-y-3">
-                      <div>
-                        <h3 className="text-xs uppercase tracking-wider text-red-400 font-bold flex items-center gap-1.5">
-                          <AlertTriangle size={14} /> Step 2 — Review Corrupted Code
-                        </h3>
-                        <p className="text-[11px] text-gray-400 mt-1">
-                          If you want to save the developer, correct the following code.
-                        </p>
+                    <div className="space-y-3 animate-slide-up">
+                      {/* Corrupted target info banner */}
+                      <div className="cyber-card border-red-500/50 bg-gradient-to-b from-red-950/40 to-red-950/20 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Skull size={16} className="text-red-400" />
+                            <div>
+                              <p className="text-xs text-red-400 font-bold uppercase tracking-wider">Corrupted File Detected</p>
+                              <p className="text-sm text-gray-300 mt-0.5">
+                                Target: <span className="text-red-300 font-bold">{adminScanResult.targetName}</span>
+                                {adminScanResult.files?.[0]?.name && (
+                                  <span className="text-gray-500"> — <span className="font-mono text-red-300/80">{adminScanResult.files[0].name}</span></span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] px-2 py-1 rounded border border-red-500/40 bg-red-900/40 text-red-300 font-mono uppercase tracking-widest">
+                            Damaged
+                          </span>
+                        </div>
+                        {adminScanResult.corruptionDesc && (
+                          <div className="mt-2 p-2 rounded bg-red-900/20 border border-red-500/20">
+                            <p className="text-[10px] uppercase tracking-wider text-red-400/70 font-bold mb-1">Attack Type</p>
+                            <p className="text-xs text-red-300 font-mono">{adminScanResult.corruptionDesc}</p>
+                          </div>
+                        )}
                       </div>
 
+                      {/* Corrupted code display */}
                       {adminScanResult.files?.length > 0 && (
                         <div className="space-y-2">
+                          <p className="text-[10px] uppercase tracking-wider text-red-400/80 font-bold flex items-center gap-1.5">
+                            <File size={11} /> Corrupted Code — Review Carefully
+                          </p>
                           {adminScanResult.files.map((file, fIdx) => (
-                            <div key={fIdx} className="rounded border overflow-hidden transition-all border-gray-700/50 bg-[#0d1117]">
-                              <div className="font-mono text-[10px] leading-4 whitespace-pre overflow-auto max-h-36 px-2 py-2 border-gray-700/30">
+                            <div key={fIdx} className="rounded-lg border-2 border-red-500/30 overflow-hidden bg-[#0d1117] shadow-lg shadow-red-900/10">
+                              <div className="px-3 py-1.5 bg-red-950/40 border-b border-red-500/20 flex items-center justify-between">
+                                <span className="text-[11px] font-mono text-red-300 flex items-center gap-1.5">
+                                  <File size={11} className="text-red-400" /> {file.name}
+                                </span>
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-900/50 border border-red-500/40 text-red-300 font-bold uppercase tracking-widest flex items-center gap-1">
+                                  <AlertTriangle size={9} /> Corrupted
+                                </span>
+                              </div>
+                              <div className="font-mono text-[11px] leading-5 whitespace-pre overflow-auto max-h-64 px-0 py-2">
                                 {file.code?.split('\n').map((line, i) => (
-                                  <div key={i} className="flex hover:bg-white/5">
-                                    <span className="select-none text-gray-600 text-right pr-2 pl-1 min-w-[2rem] border-r border-gray-700/30 text-[9px]">{i + 1}</span>
-                                    <span className="pl-2 text-gray-400">{line}</span>
+                                  <div key={i} className="flex hover:bg-red-500/5 group">
+                                    <span className="select-none text-gray-600 text-right pr-3 pl-2 min-w-[2.5rem] border-r border-red-900/30 text-[10px]">{i + 1}</span>
+                                    <span className="pl-3 text-gray-300 group-hover:text-gray-200">{line}</span>
                                   </div>
                                 ))}
                               </div>
@@ -332,16 +377,19 @@ export default function GameScreen({
                         </div>
                       )}
 
+                      {/* Repair options */}
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider text-green-300/80 font-bold">Correction options</p>
+                        <p className="text-[10px] uppercase tracking-wider text-green-300/80 font-bold flex items-center gap-1.5">
+                          <CheckCircle size={11} /> Fix Options — Repair the Corruption
+                        </p>
                         {(adminScanResult.repairOptions || []).flatMap((option) =>
                           (option.fixes || []).map((fix, idx) => (
                             <button
                               key={`${option.fileIdx}-${idx}`}
                               onClick={() => onAdminRepair(adminScanResult.targetId)}
-                              className="w-full py-3 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/30 text-green-300 hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02]"
+                              className="w-full py-3.5 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/20 text-green-300 hover:bg-green-700/40 hover:border-green-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-green-900/20 flex items-center justify-center gap-2"
                             >
-                              <CheckCircle size={14} className="inline-block mr-1" /> Correction Option — {fix.desc}
+                              <CheckCircle size={16} /> Fix Attack — {fix.desc}
                             </button>
                           ))
                         )}
@@ -349,9 +397,9 @@ export default function GameScreen({
                         {(!adminScanResult.repairOptions || adminScanResult.repairOptions.length === 0) && (
                           <button
                             onClick={() => onAdminRepair(adminScanResult.targetId)}
-                            className="w-full py-3 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/30 text-green-300 hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02]"
+                            className="w-full py-3.5 rounded-lg border-2 font-bold text-sm transition-all border-green-500/60 bg-green-900/20 text-green-300 hover:bg-green-700/40 hover:border-green-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-green-900/20 flex items-center justify-center gap-2"
                           >
-                            <CheckCircle size={14} className="inline-block mr-1" /> Repair Code
+                            <CheckCircle size={16} /> Repair Corrupted Code
                           </button>
                         )}
                       </div>
@@ -371,7 +419,7 @@ export default function GameScreen({
                       </h3>
                       <p className={`text-sm ${adminRepairResult.repaired ? 'text-green-300' : 'text-yellow-300'}`}>
                         {adminRepairResult.repaired
-                          ? 'The corrupted code has been repaired successfully.'
+                          ? 'The corrupted code has been repaired successfully. The developer is safe.'
                           : 'No corrupted code was available to repair.'}
                       </p>
                     </div>
@@ -443,17 +491,20 @@ export default function GameScreen({
                 </div>
               )}
 
-              {/* Developer / Hacker sunrise panel */}
+              {/* Developer / Hacker waiting panel */}
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
-                <div className="cyber-card border-gray-600/30">
-                  <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2 flex items-center gap-1.5">
-                    <SunriseIcon size={14} /> {isNightReview ? 'Night Review' : 'Sunrise'}
+                <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-gray-600/30'}`}>
+                  <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-gray-400'}`}>
+                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack In Progress — Admin Reviewing' : 'Sunrise'}
                   </h3>
                   <p className="text-sm text-gray-500">
                     {isNightReview
-                      ? 'The Admin and QA are reviewing the corrupted code... Wait for the day phase.'
+                      ? 'An attack was detected. The Admin is reviewing the corrupted code under cover of night...'
                       : 'The Admin and QA are reviewing code... Wait for the day phase.'}
                   </p>
+                  {isNightReview && (
+                    <p className="text-[10px] text-red-400/60 mt-2 font-mono uppercase tracking-wider">Night mode active</p>
+                  )}
                 </div>
               )}
 
@@ -464,7 +515,7 @@ export default function GameScreen({
                   </h3>
                   <p className="text-sm text-gray-500">
                     {isNightReview
-                      ? 'You have been terminated. Observe the night review in silence.'
+                      ? 'You have been terminated. The Admin is reviewing corrupted code in night mode.'
                       : 'You have been terminated. Observe the sunrise in silence.'}
                   </p>
                 </div>

@@ -432,10 +432,14 @@ class Room {
   startNightReview(broadcast, sendToPlayerFn) {
     this._lastBroadcast = broadcast;
     this._lastSendToPlayer = sendToPlayerFn;
+
+    const targetPlayer = this.nightActions.hackerTarget ? this.getPlayer(this.nightActions.hackerTarget) : null;
     this.setPhase(PHASES.NIGHT, broadcast, {
-      message: 'Night review… Admin and QA inspect the corrupted code and take action.',
+      message: `Attack detected! ${targetPlayer ? targetPlayer.name + "'s" : "A developer's"} code has been corrupted. Admin: review and fix the damage.`,
       duration: TIMERS.SUNRISE,
       hackerInjected: true,
+      attackTargetId: this.nightActions.hackerTarget || null,
+      attackTargetName: targetPlayer?.name || null,
     });
 
     this.phaseTimer = setTimeout(() => {

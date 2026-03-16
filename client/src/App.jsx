@@ -153,7 +153,8 @@ export default function App() {
       setSkipCount(0);
       setHasSkipped(false);
       // Clear night result & hacker votes when night starts (night-first flow)
-      if (p === PHASES.NIGHT) {
+      // But NOT during night review (hackerInjected) — preserve admin scan state
+      if (p === PHASES.NIGHT && !rest.hackerInjected) {
         setNightResult(null);
         setHackerVoteStatus(null);
         setHackerInjectResult(null);
@@ -179,7 +180,10 @@ export default function App() {
         [PHASES.NIGHT]: { title: '\ud83c\udf19 Night Phase', type: 'night' },
         [PHASES.SUNRISE]: { title: '\ud83c\udf05 Sunrise Phase', type: 'info' },
       };
-      const toastInfo = phaseLabels[p];
+      // Night review gets a special attack toast instead of generic night
+      const toastInfo = (p === PHASES.NIGHT && rest.hackerInjected)
+        ? { title: '\ud83d\udea8 Attack Detected \u2014 Admin Review', type: 'danger' }
+        : phaseLabels[p];
       if (toastInfo) {
         setToasts(prev => [...prev, { ...toastInfo, message: message || '', id: Date.now() + Math.random() }]);
       }

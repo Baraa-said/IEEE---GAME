@@ -39,6 +39,7 @@ function ToastItem({ toast, onRemove }) {
     protection: 'border-cyber-green/60 bg-gradient-to-r from-cyber-green/20 to-cyber-darker text-cyber-green',
     info: 'border-cyber-blue/60 bg-gradient-to-r from-cyber-blue/20 to-cyber-darker text-cyber-blue',
     voting: 'border-cyber-blue/60 bg-gradient-to-r from-cyber-blue/20 to-cyber-darker text-cyber-blue',
+    danger: 'border-red-500/60 bg-gradient-to-r from-red-900/30 to-cyber-darker text-red-400',
   };
 
   const style = typeStyles[toast.type] || typeStyles.info;
