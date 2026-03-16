@@ -434,7 +434,7 @@ class Room {
     this._lastSendToPlayer = sendToPlayerFn;
 
     const targetPlayer = this.nightActions.hackerTarget ? this.getPlayer(this.nightActions.hackerTarget) : null;
-    this.setPhase(PHASES.NIGHT, broadcast, {
+    this.setPhase(PHASES.SUNRISE, broadcast, {
       message: `Attack detected! ${targetPlayer ? targetPlayer.name + "'s" : "A developer's"} code has been corrupted. Admin: review and fix the damage.`,
       duration: TIMERS.SUNRISE,
       hackerInjected: true,

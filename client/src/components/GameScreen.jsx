@@ -84,7 +84,7 @@ export default function GameScreen({
 
   const isNight = phase === PHASES.NIGHT;
   const isSunrise = phase === PHASES.SUNRISE;
-  const isNightReview = isNight && !!gameState?.hackerInjected;
+  const isNightReview = isSunrise && !!gameState?.hackerInjected;
   const isVoting = phase === PHASES.DAY_VOTING;
   const isDefense = phase === PHASES.DAY_DEFENSE;
   const isDay = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
@@ -285,7 +285,7 @@ export default function GameScreen({
                       <div>
                         <h3 className="text-sm font-bold text-red-400 tracking-wide flex items-center gap-2">
                           ATTACK DETECTED — ADMIN REVIEW
-                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-900/50 border border-red-500/40 text-red-300 uppercase tracking-widest font-mono animate-pulse">Night Mode</span>
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-900/50 border border-red-500/40 text-red-300 uppercase tracking-widest font-mono animate-pulse">Sunrise</span>
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
                           The hacker has corrupted a developer's code. Review and fix the attack to save them.
@@ -495,15 +495,15 @@ export default function GameScreen({
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
                 <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-gray-600/30'}`}>
                   <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-gray-400'}`}>
-                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack In Progress — Admin Reviewing' : 'Sunrise'}
+                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack Detected — Admin Reviewing' : 'Sunrise'}
                   </h3>
                   <p className="text-sm text-gray-500">
                     {isNightReview
-                      ? 'An attack was detected. The Admin is reviewing the corrupted code under cover of night...'
+                      ? 'An attack was detected. The Admin is reviewing the corrupted code at sunrise...'
                       : 'The Admin and QA are reviewing code... Wait for the day phase.'}
                   </p>
                   {isNightReview && (
-                    <p className="text-[10px] text-red-400/60 mt-2 font-mono uppercase tracking-wider">Night mode active</p>
+                    <p className="text-[10px] text-red-400/60 mt-2 font-mono uppercase tracking-wider">Sunrise review active</p>
                   )}
                 </div>
               )}

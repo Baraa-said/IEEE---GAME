@@ -163,8 +163,8 @@ export default function App() {
         setSecurityScanResult(null);
         setPlayerCodeData(null);
       }
-      // Reset admin/security state when sunrise starts
-      if (p === PHASES.SUNRISE) {
+      // Reset admin/security state when sunrise starts (but NOT if it's a hacker attack review)
+      if (p === PHASES.SUNRISE && !rest.hackerInjected) {
         setAdminRepairResult(null);
         setSecurityScanResult(null);
         setPlayerCodeData(null);
@@ -180,8 +180,8 @@ export default function App() {
         [PHASES.NIGHT]: { title: '\ud83c\udf19 Night Phase', type: 'night' },
         [PHASES.SUNRISE]: { title: '\ud83c\udf05 Sunrise Phase', type: 'info' },
       };
-      // Night review gets a special attack toast instead of generic night
-      const toastInfo = (p === PHASES.NIGHT && rest.hackerInjected)
+      // Night review gets a special attack toast instead of generic phase label
+      const toastInfo = (p === PHASES.SUNRISE && rest.hackerInjected)
         ? { title: '\ud83d\udea8 Attack Detected \u2014 Admin Review', type: 'danger' }
         : phaseLabels[p];
       if (toastInfo) {
