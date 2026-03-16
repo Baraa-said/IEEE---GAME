@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ieee-game-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
