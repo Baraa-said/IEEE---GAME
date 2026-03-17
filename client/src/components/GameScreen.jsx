@@ -475,16 +475,22 @@ export default function GameScreen({
 
               {/* Developer / Hacker panel during sunrise */}
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
-                <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-orange-500/30 bg-orange-900/10'}`}>
-                  <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-orange-400'}`}>
-                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack Detected — Admin Reviewing' : 'Sunrise — Review Your Code'}
-                  </h3>
-                  <p className="text-sm text-gray-400">
-                    {isNightReview
-                      ? 'An attack was detected. The Admin is reviewing the corrupted code…'
-                      : 'Review your code below while the Admin and QA investigate.'}
-                  </p>
-                </div>
+                myRole === ROLES.DEVELOPER ? (
+                  <div className="text-sm p-3 rounded-lg border border-blue-500/35 bg-blue-900/20 text-blue-200">
+                    Read your code while you wait.
+                  </div>
+                ) : (
+                  <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-orange-500/30 bg-orange-900/10'}`}>
+                    <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-orange-400'}`}>
+                      {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack Detected — Admin Reviewing' : 'Sunrise — Review Your Code'}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {isNightReview
+                        ? 'An attack was detected. The Admin is reviewing the corrupted code…'
+                        : 'Review your code below while the Admin and QA investigate.'}
+                    </p>
+                  </div>
+                )
               )}
 
               {!amAlive && (

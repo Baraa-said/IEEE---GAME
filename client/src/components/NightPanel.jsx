@@ -196,7 +196,7 @@ export default function NightPanel({
           <div className="mb-4 p-3 rounded-lg border border-cyber-red/30 bg-cyber-red/5">
             <p className="text-sm text-gray-200 font-semibold mb-1 flex items-center gap-1.5"><Skull size={14} className="text-cyber-red" /> Your Mission:</p>
             <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-              <li>You have <span className="text-cyber-red font-bold">1 minute</span> to choose a player to eliminate.</li>
+              <li>You have <span className="text-cyber-red font-bold">5 minutes</span> to choose a player to eliminate.</li>
               <li>Both hackers <span className="text-yellow-400 font-bold">must vote on the same player</span> — if you disagree, votes reset!</li>
               <li>Once you agree, the <span className="text-cyber-green font-bold">target's code</span> will appear so you can choose which bug to inject.</li>
               <li>After injecting, press <span className="text-cyber-blue font-bold">Skip</span> or wait for time to run out.</li>

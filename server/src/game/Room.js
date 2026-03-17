@@ -433,13 +433,12 @@ class Room {
     this._lastBroadcast = broadcast;
     this._lastSendToPlayer = sendToPlayerFn;
 
-    const targetPlayer = this.nightActions.hackerTarget ? this.getPlayer(this.nightActions.hackerTarget) : null;
     this.setPhase(PHASES.SUNRISE, broadcast, {
-      message: `Attack detected! ${targetPlayer ? targetPlayer.name + "'s" : "A developer's"} code has been corrupted. Admin: review and fix the damage.`,
+      message: 'Attack detected! A developer\'s code has been corrupted. Admin: review and fix the damage.',
       duration: TIMERS.SUNRISE,
       hackerInjected: true,
       attackTargetId: this.nightActions.hackerTarget || null,
-      attackTargetName: targetPlayer?.name || null,
+      attackTargetName: null,
     });
 
     this.phaseTimer = setTimeout(() => {
