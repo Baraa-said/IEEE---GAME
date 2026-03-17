@@ -134,7 +134,7 @@ export default function CodeBrowser({
   }
 
   // Global: during sunrise, don't reveal code until scheduled `phaseEndTime`.
-  if (isSunrise && phaseEndTime && now < phaseEndTime) {
+  if (isSunrise && phaseEndTime && now < phaseEndTime && myRole !== ROLES.DEVELOPER) {
     return null;
   }
 
