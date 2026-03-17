@@ -310,7 +310,6 @@ function registerHandlers(io, socket) {
       const p = room.getPlayer(id);
       return p && !p.isBot;
     }).length;
-    const majorityNeeded = Math.floor(realAlive / 2) + 1;
     if (realSkips >= majorityNeeded) {
       room.skipPhase((event, data) => broadcastToRoom(room.id, event, data),
         (playerId, event, data) => io.to(playerId).emit(event, data));

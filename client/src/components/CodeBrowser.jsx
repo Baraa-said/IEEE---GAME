@@ -130,21 +130,12 @@ export default function CodeBrowser({
 
   // Admin: hide code at sunrise until a successful elimination occurred last night
   if (myRole === ROLES.ADMIN && isSunrise && !nightResult?.eliminated) {
-    return (
-      <div className="cyber-card p-3 text-xs text-gray-400">
-        Code will be revealed after last night's elimination.
-      </div>
-    );
+    return null;
   }
 
   // Global: during sunrise, don't reveal code until scheduled `phaseEndTime`.
   if (isSunrise && phaseEndTime && now < phaseEndTime) {
-    const secondsLeft = Math.max(0, Math.ceil((phaseEndTime - now) / 1000));
-    return (
-      <div className="cyber-card p-3 text-xs text-gray-400">
-        Code will be revealed in {secondsLeft}s.
-      </div>
-    );
+    return null;
   }
 
   // Merge playerCodeData (from browse requests — QA, hacker, etc.)
@@ -468,7 +459,6 @@ export default function CodeBrowser({
           {myRole === ROLES.ADMIN && isSunrise && selectedPlayerId === myId && (
             <div className="text-xs p-2 rounded border bg-blue-900/10 border-blue-500/20 text-blue-400">
               Use the <span className="font-semibold">Scan Code for Corruption</span> buttons in the panel above to investigate players.
-              Only corrupted code will be revealed here.
             </div>
           )}
 

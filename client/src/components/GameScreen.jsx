@@ -8,7 +8,7 @@ import NightPanel from './NightPanel';
 import CodeBrowser from './CodeBrowser';
 import { getAvatarForRole } from '../utils/avatars';
 import { getTheme } from '../utils/themes';
-import { Bug, Code2, AlertTriangle, CheckCircle, Search, Shield, Skull, Sun, Sunrise as SunriseIcon, File, Crosshair, XCircle, SkipForward } from 'lucide-react';
+import { Bug, Code2, AlertTriangle, CheckCircle, Search, Shield, Skull, Sun, Sunrise as SunriseIcon, File, Crosshair, XCircle, SkipForward, Wrench } from 'lucide-react';
 
 /**
  * GameScreen – Main game view. Orchestrates all sub-panels based on the
@@ -88,6 +88,24 @@ export default function GameScreen({
   const isVoting = phase === PHASES.DAY_VOTING;
   const isDefense = phase === PHASES.DAY_DEFENSE;
   const isDay = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
+
+  const simplifyFixLabel = (rawLabel) => {
+    if (!rawLabel) return '';
+
+    // Expected format from server: Replace `wrong` with `correct`
+    const replacePattern = /^Replace\s+`(.+?)`\s+with\s+`(.+?)`$/i;
+    const match = rawLabel.match(replacePattern);
+    if (match) {
+      const wrongPart = match[1].trim();
+      const correctPart = match[2].trim();
+      return `Fix this: ${wrongPart} -> ${correctPart}`;
+    }
+
+    return rawLabel
+      .replace(/`/g, '')
+      .replace(/\s+[—-]\s+/g, ' ')
+      .trim();
+  };
   const isHacker = myRole === ROLES.HACKER;
 
   React.useEffect(() => {
@@ -344,9 +362,9 @@ export default function GameScreen({
 
                       {/* Corrupted code display — no scroll, like hacker code view */}
                       {adminScanResult.files?.length > 0 && (
-                        <div className="space-y-2">
+                        <div className="space-y-0">
                           {adminScanResult.files.map((file, fIdx) => (
-                            <div key={fIdx} className="rounded-lg border-2 border-red-500/30 overflow-hidden bg-[#0d1117] shadow-lg shadow-red-900/10">
+                            <div key={fIdx} className="rounded-t-lg border-2 border-red-500/30 overflow-hidden bg-[#0d1117] shadow-lg shadow-red-900/10">
                               <div className="px-3 py-1.5 bg-red-950/40 border-b border-red-500/20 flex items-center justify-between">
                                 <span className="text-[11px] font-mono text-red-300 flex items-center gap-1.5">
                                   <File size={11} className="text-red-400" /> {file.name}
@@ -365,22 +383,23 @@ export default function GameScreen({
                               </div>
                             </div>
                           ))}
-                        </div>
-                      )}
 
-                      {/* Fix options — matching hacker injection button style */}
-                      {adminScanResult.fixOptions?.length > 0 && !adminRepairResult && (
-                        <div className="mt-2 space-y-1.5 p-2">
-                          {adminScanResult.fixOptions.map((fix) => (
-                            <button
-                              key={fix.fixIndex}
-                              onClick={() => onAdminRepair(adminScanResult.targetId, fix.fixIndex)}
-                              className="w-full text-left text-xs px-3 py-2.5 rounded-lg border border-green-500/25 bg-green-900/10 text-green-300 hover:bg-green-900/30 hover:border-green-500/50 transition-all flex items-center gap-2 shadow-sm"
-                            >
-                              <span className="text-green-500 flex-shrink-0"><CheckCircle size={14} /></span>
-                              <span>{fix.label}</span>
-                            </button>
-                          ))}
+                          {adminScanResult.fixOptions?.length > 0 && !adminRepairResult && (
+                            <div className="-mt-px border-x-2 border-b-2 border-red-500/30 rounded-b-lg overflow-hidden bg-[#0d1117]">
+                              <div className="p-2 space-y-2">
+                                {adminScanResult.fixOptions.map((fix) => (
+                                  <button
+                                    key={fix.fixIndex}
+                                    onClick={() => onAdminRepair(adminScanResult.targetId, fix.fixIndex)}
+                                    className="w-full text-left text-[11px] font-mono font-semibold tracking-wide px-4 py-3 rounded-[10px] border border-green-500/50 bg-[#112019] text-green-200 hover:bg-[#153025] hover:border-green-400/80 transition-all flex items-center gap-2.5 whitespace-nowrap overflow-hidden"
+                                  >
+                                    <span className="text-green-400 flex-shrink-0"><Wrench size={15} /></span>
+                                    <span className="truncate">{simplifyFixLabel(fix.label)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -389,10 +408,10 @@ export default function GameScreen({
                   {adminRepairResult && (
                     <div className={`cyber-card animate-slide-up space-y-2 ${
                       adminRepairResult.repaired
-                        ? 'border-green-500/40 bg-green-900/10'
+                        ? 'border-green-500/40 bg-[#0d1117]'
                         : adminRepairResult.wrongFix
-                        ? 'border-red-500/40 bg-red-900/10'
-                        : 'border-yellow-500/40 bg-yellow-900/10'
+                        ? 'border-red-500/40 bg-[#0d1117]'
+                        : 'border-yellow-500/40 bg-[#0d1117]'
                     }`}>
                       <h3 className={`text-xs uppercase tracking-wider font-bold flex items-center gap-1.5 ${
                         adminRepairResult.repaired ? 'text-green-400' : adminRepairResult.wrongFix ? 'text-red-400' : 'text-yellow-400'
@@ -419,7 +438,7 @@ export default function GameScreen({
 
               {/* QA sunrise panel */}
               {myRole === ROLES.SECURITY_LEAD && amAlive && (
-                <div className="cyber-card border-yellow-500/30 bg-yellow-900/10 space-y-3">
+                <div className="cyber-card border-yellow-500/30 bg-[#0d1117] space-y-3">
                   <h3 className="text-xs uppercase tracking-wider text-yellow-400 font-bold mb-2 flex items-center gap-1.5">
                     <SunriseIcon size={14} /> QA — Scan Suspects
                   </h3>
@@ -431,7 +450,7 @@ export default function GameScreen({
                       <button
                         key={p.id}
                         onClick={() => onSecurityScan(p.id)}
-                        className="flex flex-col items-center gap-2 p-4 rounded-lg border border-yellow-500/30 bg-yellow-900/20 text-yellow-300 hover:bg-yellow-700/40 hover:border-yellow-400/60 hover:scale-105 transition-all animate-slide-up"
+                        className="flex flex-col items-center gap-2 p-4 rounded-lg border border-yellow-500/30 bg-[#121826] text-yellow-300 hover:bg-[#1a2338] hover:border-yellow-400/60 hover:scale-105 transition-all animate-slide-up"
                         style={{ animationDelay: `${idx * 60}ms`, animationFillMode: 'both' }}
                       >
                         <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.name)}`} alt={p.name} className="w-12 h-12 rounded-full bg-black/40 border border-yellow-500/30" />
