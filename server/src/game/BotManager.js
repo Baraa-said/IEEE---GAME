@@ -109,7 +109,7 @@ class BotManager {
     }
   }
 
-  /* ─── Sunrise: admin bot protects someone ───────── */
+  /* ─── Sunrise: admin bot repairs corrupted code ──── */
 
   static async _doSunrise(room, bots, _broadcast, sendToPlayer) {
     const adminBot = bots.find(b => b.role === ROLES.ADMIN);
@@ -119,10 +119,31 @@ class BotManager {
     await this.sleep(this.rand(6000, 20000));
     if (room.phase !== PHASES.SUNRISE) return;
 
+    // Admin bot tries to repair the hacker's target if code was injected
+    const hackerTarget = room.nightActions?.hackerTarget;
+    if (hackerTarget && room.nightActions?.hackerInjected) {
+      const details = CodeEngine.getCorruptionDetails(room.codeStore, hackerTarget);
+      if (details && details.corrupted) {
+        // Attempt a bug guess on the corrupted player's file
+        const result = room.submitAdminBugGuess(adminBot.id, hackerTarget, details.fileIdx, sendToPlayer);
+        if (result && !result.error) {
+          sendToPlayer(adminBot.id, EVENTS.ADMIN_BUG_GUESS_RESULT, result);
+          if (broadcast) {
+            broadcast(EVENTS.ROOM_UPDATE, room.getPublicState());
+          }
+        }
+        return;
+      }
+    }
+
+    // Fallback: try to repair a random alive player's code
     const alive = room.getAlivePlayers().filter(p => p.id !== adminBot.id);
     if (!alive.length) return;
     const pick = alive[this.rand(0, alive.length - 1)];
-    room.submitNightAction(adminBot.id, pick.id, sendToPlayer, broadcast);
+    const repairResult = room.submitAdminRepair(adminBot.id, pick.id, sendToPlayer);
+    if (repairResult) {
+      sendToPlayer(adminBot.id, EVENTS.ADMIN_REPAIR_RESULT, repairResult);
+    }
   }
 
   /* ─── Day voting: bots cast random votes ────────── */

@@ -58,6 +58,7 @@ export const EVENTS = Object.freeze({
   RECONNECT_ATTEMPT: 'reconnect_attempt',
   RECONNECT_SUCCESS: 'reconnect_success',
   RECONNECT_FAIL: 'reconnect_fail',
+  KICK_PLAYER: 'kick_player',
 });
 
 export const PHASES = Object.freeze({

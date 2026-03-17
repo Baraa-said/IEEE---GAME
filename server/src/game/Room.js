@@ -9,7 +9,6 @@
  *  - Win-condition checks after every elimination
  */
 
-const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const Player = require('./Player');
 const RoleEngine = require('./RoleEngine');
@@ -117,6 +116,10 @@ class Room {
     // Code files per player (populated at game start)
     /** @type {Map<string, object>|null} */
     this.codeStore = null;
+
+    // Cached references for bot manager and timer callbacks
+    this._lastBroadcast = null;
+    this._lastSendToPlayer = null;
   }
 
   /* ═══════════════════════════════════════════

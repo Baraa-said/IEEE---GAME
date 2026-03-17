@@ -103,7 +103,7 @@ function registerHandlers(io, socket) {
     if (!room || room.phase !== PHASES.LOBBY) return;
     const player = room.getPlayer(socket.id);
     if (!player) return;
-    const valid = ['Developer', 'Hacker', 'QA', 'Admin'];
+    const valid = Object.values(ROLES);
     if (!valid.includes(role)) return;
     player.preferredRole = role;
     // Confirm back to client only
@@ -439,7 +439,7 @@ function registerHandlers(io, socket) {
   socket.on(EVENTS.HACKER_INJECT, ({ targetId, fileIdx, patchIdx }) => {
     // Redirect to inject vote system
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== 'night') return;
+    if (!room || !room.codeStore || room.phase !== PHASES.NIGHT) return;
 
     room.submitHackerInjectVote(
       socket.id,
@@ -455,7 +455,7 @@ function registerHandlers(io, socket) {
    * ────────────────────────────────────────── */
   socket.on(EVENTS.HACKER_INJECT_VOTE, ({ fileIdx, patchIdx }) => {
     const room = roomManager.getRoomBySocket(socket.id);
-    if (!room || !room.codeStore || room.phase !== 'night') return;
+    if (!room || !room.codeStore || room.phase !== PHASES.NIGHT) return;
 
     room.submitHackerInjectVote(
       socket.id,
