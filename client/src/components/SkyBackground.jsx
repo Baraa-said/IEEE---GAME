@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PHASES, ROLES } from '../shared/constants';
+import { PHASES } from '../shared/constants';
 
 /* ── inline keyframe styles (injected once) ── */
 const STYLE_ID = 'sky-bg-keyframes';
@@ -24,13 +24,10 @@ if (typeof document !== 'undefined' && !document.getElementById(STYLE_ID)) {
  * SUNRISE : Warm horizon glow, scattered clouds, fading stars
  * DAY     : Clean blue gradient, drifting clouds, bright sun with lens flare
  */
-export default function SkyBackground({ phase, role }) {
-  // Admin and QA always see the night background
-  const forceNight = role === ROLES.ADMIN || role === ROLES.SECURITY_LEAD;
-
-  const isNight   = forceNight || phase === PHASES.NIGHT;
-  const isSunrise = !forceNight && phase === PHASES.SUNRISE;
-  const isDay     = !forceNight && [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
+export default function SkyBackground({ phase }) {
+  const isNight   = phase === PHASES.NIGHT;
+  const isSunrise = phase === PHASES.SUNRISE;
+  const isDay     = [PHASES.DAY_DISCUSSION, PHASES.DAY_VOTING, PHASES.DAY_DEFENSE].includes(phase);
 
   /* ── stars ── */
   const stars = useMemo(() => {

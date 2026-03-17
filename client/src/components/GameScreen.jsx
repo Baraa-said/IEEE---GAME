@@ -414,13 +414,6 @@ export default function GameScreen({
                     </div>
                   )}
 
-                  {/* Admin Finish Review button */}
-                  <button
-                    onClick={onFinishSunrise}
-                    className="w-full py-3 rounded-lg border border-green-400/50 bg-green-900/30 text-green-300 font-bold text-sm hover:bg-green-700/50 hover:border-green-300 hover:scale-[1.02] transition-all animate-bounce-in"
-                  >
-                    <CheckCircle size={14} className="inline-block mr-1" /> Finish Review — I'm Done
-                  </button>
                 </div>
               )}
 
@@ -461,20 +454,17 @@ export default function GameScreen({
                 </div>
               )}
 
-              {/* Developer / Hacker waiting panel */}
+              {/* Developer / Hacker panel during sunrise */}
               {myRole !== ROLES.ADMIN && myRole !== ROLES.SECURITY_LEAD && amAlive && (
-                <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-gray-600/30'}`}>
-                  <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-gray-400'}`}>
-                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack Detected — Admin Reviewing' : 'Sunrise'}
+                <div className={`cyber-card ${isNightReview ? 'border-red-900/30 bg-red-950/10' : 'border-orange-500/30 bg-orange-900/10'}`}>
+                  <h3 className={`text-xs uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5 ${isNightReview ? 'text-red-400' : 'text-orange-400'}`}>
+                    {isNightReview ? <AlertTriangle size={14} /> : <SunriseIcon size={14} />} {isNightReview ? 'Attack Detected — Admin Reviewing' : 'Sunrise — Review Your Code'}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-400">
                     {isNightReview
-                      ? 'An attack was detected. The Admin is reviewing the corrupted code at sunrise...'
-                      : 'The Admin and QA are reviewing code... Wait for the day phase.'}
+                      ? 'An attack was detected. The Admin is reviewing the corrupted code…'
+                      : 'Review your code below while the Admin and QA investigate.'}
                   </p>
-                  {isNightReview && (
-                    <p className="text-[10px] text-red-400/60 mt-2 font-mono uppercase tracking-wider">Sunrise review active</p>
-                  )}
                 </div>
               )}
 

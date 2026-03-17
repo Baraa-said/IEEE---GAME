@@ -114,15 +114,6 @@ export default function LobbyScreen({
           {isHost && (
             <>
               <button
-                onClick={() => onFillBots?.(6)}
-                className="cyber-btn-blue w-full text-center mb-2"
-                disabled={gameState.players.length >= (gameState.maxPlayers || 10)}
-                title="Populate the lobby with bot players (up to max)"
-              >
-                <Bot size={14} className="inline-block mr-1" /> Fill Bots
-              </button>
-
-              <button
                 onClick={() => onStartGame(advancedMode)}
                 disabled={gameState.players.length < (gameState.minPlayers || 6)}
                 className="cyber-btn-green w-full text-center"
@@ -195,20 +186,7 @@ export default function LobbyScreen({
           />
         </div>
 
-        {/* Preferred Role */}
-        <div className="mb-4">
-          <label className="block text-xs text-gray-400 uppercase tracking-wider mb-1">Preferred Role (optional)</label>
-          <select
-            value={chosenRole || ''}
-            onChange={(e) => setChosenRole(e.target.value || null)}
-            className="cyber-input w-full"
-          >
-            <option value="">No preference</option>
-            {Object.entries(ROLES).map(([k, v]) => (
-              <option key={k} value={v}>{v}</option>
-            ))}
-          </select>
-        </div>
+        {/* Preferred Role – removed */}
 
         {/* Create Room */}
         <button

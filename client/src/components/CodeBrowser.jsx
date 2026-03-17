@@ -51,14 +51,18 @@ export default function CodeBrowser({
   const [selectedFileIdx, setSelectedFileIdx] = useState(0);
   const [showInjectPanel, setShowInjectPanel] = useState(true);
 
-  // During day, always show own code
+  // During day or sunrise (for developers), always show own code
   useEffect(() => {
     if (!isNight && !isSunrise) {
       setSelectedPlayerId(myId);
       setSelectedFileIdx(0);
       setShowInjectPanel(true);
     }
-  }, [isNight, isSunrise, myId]);
+    if (isSunrise && myRole === ROLES.DEVELOPER) {
+      setSelectedPlayerId(myId);
+      setSelectedFileIdx(0);
+    }
+  }, [isNight, isSunrise, myId, myRole]);
 
   // Reset file index when switching players
   useEffect(() => {

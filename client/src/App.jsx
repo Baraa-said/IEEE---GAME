@@ -504,7 +504,7 @@ export default function App() {
   // In-game
   return (
     <>
-      <SkyBackground phase={phase} role={myRole} />
+      <SkyBackground phase={phase} />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <GameScreen
         myId={myId}
