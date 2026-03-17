@@ -16,6 +16,7 @@ Built with **React 18 + Tailwind CSS + Vite** (client) and **Node.js + Express +
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
+- [Deploy on Render](#deploy-on-render)
 - [Configuration](#configuration)
 - [Admin Dashboard](#admin-dashboard)
 - [Bot Support](#bot-support)
@@ -245,6 +246,27 @@ The server automatically:
 cd server
 npm run build-and-run
 ```
+
+---
+
+## Deploy on Render
+
+This repo includes a ready-to-use `render.yaml` blueprint.
+
+1. Push this repository to GitHub.
+2. In Render, choose **New +** → **Blueprint**.
+3. Select this repository and confirm the service.
+4. Deploy.
+
+Render will:
+- install server dependencies
+- build the React client
+- start the Node.js server from `server/src/index.js`
+
+After deploy:
+- Open your Render URL to access the game.
+- Verify health check at `<your-render-url>/api/health`.
+- Admin dashboard is available at `<your-render-url>/admin`.
 
 ---
 

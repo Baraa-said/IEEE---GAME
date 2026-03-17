@@ -74,6 +74,10 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n⚔️  IEEE Code Wars server running on http://localhost:${PORT}`);
   console.log(`   Local network: http://${getLocalIP()}:${PORT}\n`);
 
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
   // ── Auto-start Cloudflare Tunnel (free, no password gate) ──
   try {
     const { exec } = require('child_process');
